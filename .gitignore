@@ -1,0 +1,9 @@
+images/
+MNIST/
+MNIST_RUNS/
+saves/
+data/
+wandb/
+AugmentedDS_IDSW/
+Untitled1.ipynb
+Untitled2.ipynb
