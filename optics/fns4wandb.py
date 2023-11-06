@@ -86,7 +86,7 @@ def choose_model(config):
 #           PIPLINE FUNCTIONS
 
                                 # HP Sweep
-def train(config, col_dict):
+def hp_sweep(config, col_dict):
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
 
     x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path= config.image_path)

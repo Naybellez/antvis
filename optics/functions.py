@@ -151,7 +151,7 @@ class  ImageProcessor():
 			#print(im)
 		else:
 			im= img_path
-			
+		print('1')
 		if unwrap:
 			if size[0] != size[1]:
 				im = Unwrap(im)
@@ -161,6 +161,7 @@ class  ImageProcessor():
 			#im= cv2.resize(im, (size[0], size[1]))
 			im= self.to_tensor(im)
 			return(im)
+		print('2')
 		r = im[:,:,2]
 		g = im[:,:,1]
 		b = im[:,:,0]
@@ -175,17 +176,19 @@ class  ImageProcessor():
 			im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 		elif col =='colour' or col == 'color':
 			pass
-		
-		if unwrap:
-			im = cv2.resize(im, (size[0], size[1]))
+		print('3')
+		print(im.shape, 'pre')
+		im = cv2.resize(im, (size[0], size[1]))
+		print(im.shape, 'post')
 			#print(im.shape, '3')
-
+		print('4')
 		if pad > 0:
 			im = self.padding(img=im, pad_size=pad)
 			#print(im.shape, '4')
 		#print(im.shape, '5')
 		im = self.to_tensor(im)
 		#print(type(im))
+		print('5')
 		return im
 
 	def view(self, img, scale:int):
