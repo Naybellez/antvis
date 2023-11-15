@@ -116,6 +116,43 @@ class  ImageProcessor():
 		new_im = np.array(new_im)
 		new_im = np.transpose(new_im, (1,2,0))
 		return new_im
+	
+	from numpy.linalg import norm
+
+	def luminance(self, img):
+		r,g,b = self.split_channels(img)
+		lum = (0.114*b)+(0.587*g)+(0.299*r)
+		mean_lum = np.mean(lum)
+		return mean_lum
+
+	def blank_padding(self, img, new_size:tuple):
+		
+		# create a averge luminunce padding
+		# to turn images into a 224224 sqaure
+		# for input into vgg16 and resnet
+		# resize/ scale incoming image. (226,72)
+		#print(img.shape)
+		img = cv2.resize(img, [224, 72]) #h w
+		#print(img.shape)
+
+		w = new_size[0]
+		h = new_size[1]    
+		
+		delta_w = w - img.shape[1]
+		delta_h = h - img.shape[0]
+		half_delta_h = int(np.round(delta_h/2, decimals=0))
+
+		# calc avg luminance of image
+		avg_lum = int(self.luminance(img))
+		# create blank np array of output size
+		# fill with avg luminance
+		
+		new_x = np.full((h, w, 3), avg_lum) # h w c #avg_lum
+		new_x[half_delta_h:-half_delta_h,:,:] = img #
+		
+		return new_x
+		
+
 	# padding?
 	def padding(self, img, pad_size):
 		left_x = img[:,:pad_size,:] # h, w, c
@@ -142,53 +179,52 @@ class  ImageProcessor():
 		tensor = tensor.reshape(1, im_chan, imgY, imgX)
 		tensor = tensor.to(self.device)
 		return tensor
-
+	def split_channels(self, im):
+			r = im[:,:,2]
+			g = im[:,:,1]
+			b = im[:,:,0]
+			return r,g,b
+	def im_channels(self,col, r,g,b):
+		if col.lower() == 'nored':
+			im = self.two_channels(b, g)
+		elif col.lower() == 'noblue':
+			im = self.two_channels(g, r)
+		elif col.lower() == 'nogreen':
+			im = self.two_channels(b, r)
+		elif col.lower() == 'grey':
+			im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+		elif col.lower() =='colour' or col == 'color':
+			pass
+		return im
+	
 	#useful functions
-	def colour_size_tense(self, img_path, col, size, pad:int, unwrap=False):
+	def colour_size_tense(self, img_path, col:str, size, pad:int, unwrap=False):
 		if isinstance(img_path, str):
 			im = cv2.imread(img_path)
 			#print(im.shape, '1')
 			#print(im)
 		else:
 			im= img_path
-		print('1')
-		if unwrap:
-			if size[0] != size[1]:
+
+		if unwrap: # check if unwrap has been specified
+			if size[0] != size[1]: # double check that the desired image size is rectangular
 				im = Unwrap(im)
-				#print(im.shape, '2')
-		#print(im, '2')
-		if im.shape[2]==1:
+
+		if im.shape[2]==1: # if the image is b&w
 			#im= cv2.resize(im, (size[0], size[1]))
 			im= self.to_tensor(im)
 			return(im)
-		print('2')
-		r = im[:,:,2]
-		g = im[:,:,1]
-		b = im[:,:,0]
 
-		if col == 'nored':
-			im = self.two_channels(b, g)
-		elif col == 'noblue':
-			im = self.two_channels(g, r)
-		elif col == 'nogreen':
-			im = self.two_channels(b, r)
-		elif col == 'grey':
-			im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-		elif col =='colour' or col == 'color':
-			pass
-		print('3')
-		print(im.shape, 'pre')
-		im = cv2.resize(im, (size[0], size[1]))
-		print(im.shape, 'post')
-			#print(im.shape, '3')
-		print('4')
-		if pad > 0:
+		r,g,b = self.split_channels(im)
+		im = self.im_channels(col, r,g,b)
+
+		im = cv2.resize(im, (size[0], size[1])) # resize the image
+
+		if pad > 0: # if padding has been specified...
 			im = self.padding(img=im, pad_size=pad)
-			#print(im.shape, '4')
-		#print(im.shape, '5')
-		im = self.to_tensor(im)
-		#print(type(im))
-		print('5')
+
+		im = self.to_tensor(im) 
+
 		return im
 
 	def view(self, img, scale:int):
