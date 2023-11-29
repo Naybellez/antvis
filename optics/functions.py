@@ -184,7 +184,8 @@ class  ImageProcessor():
 			g = im[:,:,1]
 			b = im[:,:,0]
 			return r,g,b
-	def im_channels(self,col, r,g,b):
+	def im_channels(self,im,col):
+		r,g,b = self.split_channels(im)
 		if col.lower() == 'nored':
 			im = self.two_channels(b, g)
 		elif col.lower() == 'noblue':
@@ -210,13 +211,13 @@ class  ImageProcessor():
 			if size[0] != size[1]: # double check that the desired image size is rectangular
 				im = Unwrap(im)
 
-		if im.shape[2]==1: # if the image is b&w
+		if im.shape[2]==1: # if the image is b&w, no further processing. return im.
 			#im= cv2.resize(im, (size[0], size[1]))
 			im= self.to_tensor(im)
 			return(im)
 
-		r,g,b = self.split_channels(im)
-		im = self.im_channels(col, r,g,b)
+		
+		im = self.im_channels(im,col)
 
 		im = cv2.resize(im, (size[0], size[1])) # resize the image
 

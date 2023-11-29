@@ -31,7 +31,8 @@ from loop_fns import loop, test_loop
 from functions import import_imagedata, get_data, label_oh_tf,  Unwrap, ImageProcessor
 
 from architectures import vgg16net, smallnet1, smallnet2, smallnet3, build_net
-
+from copy import deepcopy
+import pickle
 
 #                    OPTIMISERS
 
@@ -49,7 +50,7 @@ def build_optimizer(network, optimizer, learning_rate, weight_decay=0):
 
 
 
-def set_optimizer(optim):
+def set_optimizer(optim, model, learning_rate):
 	optim_list=[]
 	if optim =='Adam':
 		optimizer1 = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -86,7 +87,7 @@ def choose_model(config):
 #           PIPLINE FUNCTIONS
 
                                 # HP Sweep
-def hp_sweep(config, col_dict):
+def hp_sweep(config, col_dict,save_dict, best_acc=0, save_location=r"/its/home/nn268/antvis/optics/pickles/"):
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
 
     x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path= config.image_path)
@@ -95,7 +96,14 @@ def hp_sweep(config, col_dict):
     loss_fn = set_lossfn(config.loss_fn)
     
     e_count = 0
-    
+    t_loss_list = []
+    v_loss_list = []
+    t_predict_list = []
+    v_predict_list = []
+    t_accuracy_list = []
+    v_accuracy_list = []
+    t_label_list = []
+    v_label_list = []
     
     optimizer = build_optimizer(model, config.optimizer, config.learning_rate, config.weight_decay)
 
@@ -103,22 +111,62 @@ def hp_sweep(config, col_dict):
     
     for epoch in range(config.epochs):
 
-        t_loss, predict_list, t_num_correct, model, optimizer = loop(model, x_train, y_train, epoch, loss_fn, device, col_dict, num_classes=config.num_classes, optimizer=optimizer)
+        t_correct =0
+        v_correct =0
+
+        if epoch == 0:
+            model = model.to('cpu')
+            best_model = deepcopy(model)
+            model = model.to(device)
+
+        model.train()
+        t_loss, predict_list, t_num_correct, model, optimizer = loop(model, x_train, y_train, epoch, loss_fn, device, col_dict, num_classes=config.num_classes, optimizer=optimizer, scheduler=scheduler)
         t_accuracy = (t_num_correct /len(x_train))*100
+        model.eval()
         v_loss, __, v_num_correct= loop(model, x_val, y_val, epoch, loss_fn, device,col_dict, num_classes= config.num_classes,train=False) 
         v_accuracy= (v_num_correct / len(x_val))*100
         
-        t_avg_loss =t_loss/len(x_train)
-        v_avg_loss = v_loss /len(x_val)
+        #t_avg_loss =t_loss/len(x_train)
+        #v_avg_loss = v_loss /len(x_val)
         
-        e_count +=1
+        
         # logging
-        wandb.log({'avg_train_loss': t_avg_loss, 'epoch':epoch})
-        wandb.log({'avg_val_loss': v_avg_loss, 'epoch':epoch})
+        #wandb.log({'avg_train_loss': t_avg_loss, 'epoch':epoch})
+        #wandb.log({'avg_val_loss': v_avg_loss, 'epoch':epoch})
         wandb.log({'train_loss': t_loss, 'epoch':epoch})
         wandb.log({'val_loss': v_loss, 'epoch':epoch})
         wandb.log({'train_accuracy_%': t_accuracy, 'epoch':epoch})
         wandb.log({'val_accuracy_%': v_accuracy, 'epoch':epoch})
+
+        if v_accuracy > best_acc:
+            best_acc = v_accuracy
+            model = model.to('cpu')
+            best_model = model#deepcopy(model)
+            model = model.to(device)
+
+            save_dict['Current_Epoch'] += config['epochs']
+            save_dict['training_samples'] = len(x_train)
+            save_dict['validation_samples'] = len(x_val)
+            save_dict['t_loss_list'] = t_loss_list
+            save_dict['t_predict_list'] = t_predict_list  
+            save_dict['t_accuracy_list'] = t_accuracy_list  #
+            save_dict['v_loss_list'] = v_loss_list
+            save_dict['v_predict_list'] = v_predict_list  #
+            save_dict['v_accuracy_list'] = v_accuracy_list  #
+            save_dict['t_labels'] = t_label_list
+            save_dict['v_labels'] = v_label_list
+            save_dict['model.state_dict'] = model.state_dict()# .to('cpu')
+            #save_dict['model_architecture_untrained'] = model_architecture
+
+            title = save_dict['Run']
+            with open(f'{save_location}{title}.pkl', 'wb+') as f:
+                pickle.dump(save_dict, f)
+            
+            print('improvment in metrics. model saved')
+
+
+        e_count +=1
+
     return model
 
                                 #Training
@@ -166,12 +214,12 @@ def pipeline(config, col_dict, title, image_file_path):
 #                                LOGGING 
 
 
-def train_log(t_loss, v_loss, sample_count, epoch):
+def train_log(t_loss, v_loss, epoch):
     wandb.log({'epoch': epoch,
               't_loss': t_loss,
               'v_loss': v_loss},
-             step=sample_count)
-    print(f'loss after {str(sample_count).zfill(5)} examples: {v_loss:.3f}')
+             )
+    
 
 
 

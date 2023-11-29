@@ -262,3 +262,22 @@ def smallnet3(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
     model = SmallNet3()
     return model
 
+# usefull classes
+
+class PrintLayer(nn.Module):
+	# usefule for printing network layers
+	def __init__(self):
+		super(PrintLayer, self).__init__()
+	def forward(self, x):
+		print(x)
+		return x
+
+class Squeeze(nn.Module):
+	# 
+	def __init__(self):
+		super(Squeeze, self).__init__()
+	def forward(self, x):
+		x = x.squeeze(0)
+		#x = x.squeeze(1)
+		#x = x.squeeze(1)
+		return x

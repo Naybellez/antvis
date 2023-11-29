@@ -65,7 +65,7 @@ class Test_IP(unittest.TestCase):
     def test_2(self): # luminance
         self.assertTrue(self.IP_1.luminance(self.test_x))
         
-        
+        #/its/home/nn268/antvis/optics/pynib_files/unittest.py
     
     def test_3(self):
         self.assertCountEqual(self.x,self.y)
