@@ -18,7 +18,7 @@ from torch.nn import functional
 #import torchvision.transforms as transforms
 
 from tqdm import tqdm
-
+import subprocess
 from functions import ImageProcessor,label_oh_tf
 import wandb
 #
@@ -26,11 +26,21 @@ import wandb
 
 # loops
 
+def print_gpu_mem():
+	proc = subprocess.run(['nvidia-smi', '-i', '0'], capture_output=True, text=True)
+	output = proc.stdout
+	p2 = subprocess.run(['grep', '/usr'], input=output, capture_output=True, text=True)
+	filtered_output = p2.stdout
+	print(filtered_output)
 
 
-def loop(model, X, Y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
-	model = model
-	total_samples = len(X)
+# editing loop to encorperate dataloader
+def loop(model, loader, epoch, loss_fn, device, col_dict, num_classes, pad_size =5, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
+	#model = model
+	print('in loop, col_dict is a: ',type(col_dict), col_dict)
+	#total_samples = 0 #len(X) #?
+
+	
 	if train:
 		model.train()
 		#lr_ls = []
@@ -38,6 +48,8 @@ def loop(model, X, Y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5
 		model.eval()
 
 	predict_list = []
+	label_list = []
+	loss_list = []
 	total_count = 0
 	num_correct = 0
 	current_loss = 0
@@ -45,36 +57,77 @@ def loop(model, X, Y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5
 	size = col_dict['size']
 	pad = col_dict['padding']
 
-	for idx, img in enumerate(X):
+	#x_batch= x_batch.to(device)
+	#for idx, img in enumerate(X):
+	for x_batch, y_batch in loader:
+		x_batch= x_batch.to(device)
+		y_batch = y_batch.to(device)
+		y_batch =y_batch.argmax()
 		#tense = tensoring(img).to(device)
-		prepro = ImageProcessor(device)
-		tense = prepro.colour_size_tense(img, colour, size, pad)
+		#if idx == 0:
+		#	display=True
+		#else:
+		#	display = False
 
+		#tense = prepro.colour_size_tense(img, colour, size, pad)
+		#if display:
+		#	print('train?', train, idx)
+		#	print('Avatar Whan')
+		#	print_gpu_mem()
 
-		prediction = model.forward(tense)
-		label = label_oh_tf(Y[idx], device, num_classes)
+		prediction = model.forward(x_batch) # tense
+		#label = label_oh_tf(y_batch, num_classes).to(device)
+		
 		#if train:
 		#	lr_ls.append(optimizer.param_groups[0]['lr'])
-		loss = loss_fn(prediction, label)
-		predict_list.append(prediction.argmax())
+		loss = loss_fn(prediction, y_batch)
+		#if display:
+		#	print('Avatar Yangchen')
+		#	print_gpu_mem()
+		
 
-		if prediction.argmax() == label.argmax():
+
+		#if prediction.argmax() == label.argmax():
+		#	num_correct +=1
+		if prediction.argmax() == y_batch.argmax():
 			num_correct +=1
 			#if train:
 			#	print(f'\n ########################### HIT ###########################  -- {idx} / {total_samples} \n')
-		total_count+=1
-		current_loss += loss.item()
+		#total_count+=1
+		#if display:
+		#	print('Avatar Kuruk')
+		#	print_gpu_mem()
+		
 		if train:
 			optimizer.zero_grad()
 			loss.backward()
 			optimizer.step()
+			#if display:
+			#	print('Avatar Kioshi')
+			#	print_gpu_mem()
 			if scheduler:
 				scheduler.step()
+		#if display:		
+		#	print('Avatar Roku')
+		#	print_gpu_mem()
+
+		loss = loss.to('cpu')
+		current_loss += loss.item()
+		#if display:
+		#	print('Avatar Aang')
+		#	print_gpu_mem()
+		loss_list.append(loss)
+		predict_list.append(prediction.argmax().to('cpu'))
+		label_list.append(y_batch.to('cpu'))#(label.to('cpu'))
+		#if display:
+		#	print('Avatar Korra')
+		#	print_gpu_mem()
+
 	#print(num_correct/len(X))
 	if train:
-		return current_loss, predict_list, num_correct, model, optimizer #, lr_ls
+		return current_loss, predict_list, num_correct, label_list,loss_list, model, optimizer #, lr_ls
 	else:
-		return current_loss, predict_list, num_correct
+		return current_loss, predict_list, num_correct, label_list,loss_list
 
 
 
