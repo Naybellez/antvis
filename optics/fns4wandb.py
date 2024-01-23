@@ -73,7 +73,8 @@ def set_lossfn(lf):
     return loss_fn
 
 def choose_model(config):
-    #print(config.first_lin_lay)
+    #print('c5', type(config))
+    #print(config.model_name)
     if config.model_name == 'build_net':
         return build_net(config.lin_layer_size,config.dropout, config.first_lin_lay, config.kernal_size, config.channel_num)
     elif config.model_name == 'smallnet1':
@@ -90,9 +91,10 @@ def choose_model(config):
 #           PIPLINE FUNCTIONS
 from loop_fns import print_gpu_mem
                                 # HP Sweep
-def hp_sweep(config, col_dict,save_dict, device, best_acc=0, data=None):
+def hp_sweep(config, col_dict,save_dict, device,seed, best_acc=0, data=None):
     #if data==None:
-    #    x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path= config.image_path)
+    #    x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path= config.image_path, seed=seed)
+    x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path= config.image_path, seed=seed)
     #elif isinstance(data, tuple):
     #    x_train, y_train, x_val, y_val, x_test, y_test = data
     #else:
@@ -132,28 +134,33 @@ def hp_sweep(config, col_dict,save_dict, device, best_acc=0, data=None):
         print('training...')
         #print('Sokka')
         #print_gpu_mem()
-
-        t_loss, t_predictions, t_num_correct,t_labels, t_losses, model, optimizer = loop(model, x_train, y_train, epoch, loss_fn, device, col_dict, num_classes=config.num_classes, optimizer=optimizer, scheduler=scheduler)
+      
+        t_loss, t_predictions, t_num_correct,t_labels, model, optimizer = loop(model, x_train, y_train, epoch, loss_fn, device, col_dict, num_classes=config.num_classes, pad_size=col_dict['padding'],optimizer=optimizer, scheduler=scheduler)
         #print('Zuko')
         #print_gpu_mem()
         t_accuracy = (t_num_correct /len(x_train))*100
         t_accuracy_list.append(t_accuracy)
-        [t_label_list.append(i.to('cpu')) for i in t_labels]
-        [t_predict_list.append(i.to('cpu')) for i in t_predictions]
-        [t_loss_list.append(i.to('cpu')) for i in t_losses]
+        #[t_label_list.append(i.to('cpu')) for i in t_labels]
+        t_label_list.append(t_labels)
+        #[t_predict_list.append(i.to('cpu')) for i in t_predictions]
+        t_predict_list.append(t_predictions)
+        #[t_loss_list.append(i.to('cpu')) for i in t_losses]
+        t_loss_list.append(t_loss)
         #print('Azula')
         #print_gpu_mem()
         model.eval()
         print('validating...') #current_loss, predict_list, num_correct
-        v_loss, v_predictions, v_num_correct, v_labels, v_losses= loop(model, x_val, y_val, epoch, loss_fn, device,col_dict, num_classes= config.num_classes, train=False) 
+        v_loss, v_predictions, v_num_correct, v_labels= loop(model, x_val, y_val, epoch, loss_fn, device,col_dict, num_classes= config.num_classes, train=False) 
         v_accuracy= (v_num_correct / len(x_val))*100
         #print('Toph')
         #print_gpu_mem()
         #v_accuracy_list.append(v_accuracy)
         #[v_label_list.append(i.to('cpu')) for i in v_labels]
+        v_label_list.append(v_labels)
         #[v_predict_list.append(i.to('cpu')) for i in v_predictions]
+        v_predict_list.append(v_predictions)
+        v_loss_list.append(v_loss)
         #[v_loss_list.append(i.to('cpu')) for i in v_losses]
-        
         #t_avg_loss =t_loss/len(x_train)
         #v_avg_loss = v_loss /len(x_val)
         
@@ -165,6 +172,20 @@ def hp_sweep(config, col_dict,save_dict, device, best_acc=0, data=None):
         wandb.log({'val_loss': v_loss, 'epoch':epoch})
         wandb.log({'train_accuracy_%': t_accuracy, 'epoch':epoch})
         wandb.log({'val_accuracy_%': v_accuracy, 'epoch':epoch})
+
+        save_dict['Current_Epoch'] = config['epochs']
+        save_dict['training_samples'] = len(x_train)# should this be the whole list for future graphs...?
+        save_dict['validation_samples'] = len(x_val)
+        save_dict['t_loss_list'] = t_loss_list #[c.to('cpu') for c in t_loss_list]
+        save_dict['t_predict_list'] = [[c.to('cpu') for c in k]for k in t_predict_list] #[[c.to('cpu') for c in k]for k in t_predict_list]  # [c.to('cpu') for c in t_predict_list] 
+        save_dict['t_accuracy_list'] = t_accuracy_list #
+        save_dict['v_loss_list'] = v_loss_list #[c.to('cpu') for c in v_loss_list]
+        save_dict['v_predict_list'] = [[c.to('cpu') for c in k]for k in v_predict_list]#[[c.to('cpu') for c in k]for k in v_predict_list] # [c.to('cpu') for c in v_predict_list]
+        save_dict['v_accuracy_list'] = v_accuracy_list #
+        save_dict['t_labels'] = [[c.to('cpu') for c in k]for k in t_label_list]
+        save_dict['v_labels'] = [[c.to('cpu') for c in k] for k in v_label_list]
+
+        
         #print('suki')
         #print_gpu_mem()
 
@@ -198,68 +219,136 @@ def hp_sweep(config, col_dict,save_dict, device, best_acc=0, data=None):
 
         e_count +=1
 
-    return model, save_dict
+    return model, save_dict, x_test, y_test
 
                                 #Training
             
-def train_model(model, train_loader, val_loader,loss_fn, config, col_dict,  device): # training. model, x_train, y_train, x_val, y_val,loss_fn, config, col_dict,  device
+def train_model(model, x_train, y_train, x_val, y_val,loss_fn, config, col_dict, save_dict, device): # training. model, x_train, y_train, x_val, y_val,loss_fn, config, col_dict,  device #model, train_loader, val_loader,loss_fn, config, col_dict,  device)
     wandb.watch(model, loss_fn, log='all', log_freq=10)
-    print('train model, col dict is a', type(col_dict) )
+    #print('train model, col dict is a', type(col_dict) )
     sample_count =0
     batch_count = 0
     e_count = 0
+    t_loss_list = []
+    v_loss_list =[]
+    t_predict_list = []
+    t_label_list = []
+    v_predict_list = []
+    v_label_list = []
+    t_accuracy_list= []
+    v_accuracy_list= []
 
     optimizer = build_optimizer(model, config.optimizer, config.learning_rate, config.weight_decay)
     scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=config.scheduler, last_epoch=-1)
     
     for epoch in tqdm(range(config.epochs)):            
-        #train                    
-        print('pre loop, col_dict is a: ', type(col_dict))          #model, loader, epoch, loss_fn, device, col_dict, num_classes, pad_size =5, optimizer =None, scheduler= None, train =True                                    
-        t_loss, predict_list, t_num_correct, model, optimizer = loop(model, train_loader, epoch, loss_fn, device, col_dict, config.num_classes, optimizer=optimizer, scheduler=scheduler) #model, x_train, y_train, epoch, loss_fn, device, col_dict, config.num_classes, optimizer=optimizer, scheduler=scheduler
+        #train                                                      
+        #print('pre loop, col_dict is a: ', type(col_dict))   
+        # current_loss, predict_list, num_correct, label_list,loss_list, model, optimizer   #model, loader, epoch, loss_fn, device, col_dict, num_classes, pad_size =5, optimizer =None, scheduler= None, train =True                                    
+        t_loss_, predict_list_, t_num_correct, t_label_list_, model, optimizer = loop(model, x_train, y_train, epoch, loss_fn, device, col_dict, config.num_classes, optimizer=optimizer, scheduler=scheduler) #model, x_train, y_train, epoch, loss_fn, device, col_dict, config.num_classes, optimizer=optimizer, scheduler=scheduler
         sample_count += len(x_train)
+        #print('train loss: ', t_loss_)
+        t_loss_list.append(t_loss_)
+        t_predict_list.append(predict_list_)
+        t_label_list.append(t_label_list_)
+        t_accuracy_list.append(t_num_correct/len(x_train))
        
-        # validation
-        v_loss, __, v_num_correct= loop(model, val_loader, epoch, loss_fn, device,col_dict, config.num_classes, train=False) 
+        # validation        #current_loss, predict_list, num_correct, label_list,loss_list
+        v_loss_, v_predict_list_, v_num_correct, v_label_list_= loop(model, x_val,y_val, epoch, loss_fn, device,col_dict, config.num_classes, train=False) 
+        #print('v loss', v_loss_)
+        v_loss_list.append(v_loss_)
+        v_predict_list.append(v_predict_list_)
+        v_label_list.append(v_label_list_)
+        v_accuracy_list.append(v_num_correct/len(x_val))
+
         batch_count +=1
         
         if (batch_count +1)%2 ==0:
-            train_log(t_loss,v_loss, sample_count, epoch)
+            train_log(t_loss_list,v_loss_list, epoch) #t_loss, v_loss, epoch)
         e_count +=1
-        clear_output()
+
+        
+
+        #clear_output()
+    #print('t loss type: ',type(t_loss_list))
+    #print('predict list type: ',type(t_predict_list))
+    #print('t label list type: ',type(t_label_list))
+    #print('v loss type: ',type(v_loss_list))
+    #print('v predict list type: ',type(v_predict_list))
+    #print('v label list type: ',type(v_label_list))
+
+
+    #print('t predictions', len(t_predict_list), t_predict_list, '\n')
+    #print('v predictions', len(v_predict_list),v_predict_list,  '\n')
+    #print('t labels ', len(t_label_list),t_label_list, '\n')
+    #print('v labels', len(v_label_list),v_label_list, '\n')
+    #print('t accuracy ',len(t_accuracy_list),t_accuracy_list, '\n')
+    #print('t loss list: ', t_loss_list)
+    #print('v loss list: ', v_loss_list)
+    save_dict['Current_Epoch'] = config['epochs']
+    save_dict['training_samples'] = len(x_train)# should this be the whole list for future graphs...?
+    save_dict['validation_samples'] = len(x_val)
+    save_dict['t_loss_list'] = t_loss_list #[c.to('cpu') for c in t_loss_list]
+    save_dict['t_predict_list'] = [[c.to('cpu') for c in k]for k in t_predict_list] #[[c.to('cpu') for c in k]for k in t_predict_list]  # [c.to('cpu') for c in t_predict_list] 
+    save_dict['t_accuracy_list'] = t_accuracy_list #
+    save_dict['v_loss_list'] = v_loss_list #[c.to('cpu') for c in v_loss_list]
+    save_dict['v_predict_list'] = [[c.to('cpu') for c in k]for k in v_predict_list]#[[c.to('cpu') for c in k]for k in v_predict_list] # [c.to('cpu') for c in v_predict_list]
+    save_dict['v_accuracy_list'] = v_accuracy_list #
+    save_dict['t_labels'] = [[c.to('cpu') for c in k]for k in t_label_list]
+    save_dict['v_labels'] = [[c.to('cpu') for c in k] for k in v_label_list]
+
+    #print(save_dict)
+
+    return save_dict
 
 
 #edits to include a dataloader 10/01/24
 from functions import IDSWDataSetLoader
 from functions import get_data
+from functions import ImageProcessor
 
-def pipeline(config, col_dict, title, device, image_file_path):
+def pipeline(config, col_dict,save_dict, title, device, seed):
+    #print('c3',config)
     #device = "cuda:1" if torch.cuda.is_available() else "cpu"
     #print('pipeline, config is type: ',type(config))
     #print(config.keys())
     #print('pipeline, col_dict is a: ',type(col_dict))
     #print(col_dict.keys())
-    loader = IDSWDataSetLoader(col_dict,device)
-    images, labels = loader[:]
-    random_seed = random.seed(3)
+    #loader = IDSWDataSetLoader(col_dict,device)
+    #images, labels = loader[:]
+    #random_seed = random.seed(8)
 
-    x_train, x_test, y_train, y_test = train_test_split(images, labels, test_size=0.3, random_state=random_seed, shuffle=True)
-    x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
-    train_loader = DataLoader(list(zip(x_train,y_train)), batch_size=16,shuffle=True)
-    val_loader = DataLoader(list(zip(x_val,y_val)), batch_size=16,shuffle=True)
-    test_loader = DataLoader(list(zip(x_test,y_test)), batch_size=16,shuffle=True)
+    # data processing
+    #x_train, x_test, y_train, y_test = train_test_split(images, labels, test_size=0.3, random_state=random_seed, shuffle=True)
+    #i = random.randrange(len(x_train))
+    #IP = ImageProcessor(device)
+    #IP.view(x_train[i], scale =5)
+    #x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
+    #IP.view(x_train[i], scale =5)
+    x_train, y_train, x_val, y_val, x_test, y_test = get_data(r'/its/home/nn268/antvis/antvis/optics/AugmentedDS_IDSW/', seed)
+    #train_loader = DataLoader(list(zip(x_train,y_train)), batch_size=16,shuffle=True)
+    #val_loader = DataLoader(list(zip(x_val,y_val)), batch_size=16,shuffle=True)
+    #test_loader = DataLoader(list(zip(x_test,y_test)), batch_size=16,shuffle=True)
 
     
 
     with wandb.init(project=title, config=config):
         config = wandb.config
+        #print('c4', type(config),config)
         #print(col_dict)
         #print(config.model_name)
         model = choose_model(config).to(device) ###
         loss_fn = set_lossfn(config.loss_fn)
-        train_model(model, train_loader, val_loader, loss_fn, config, col_dict, device)
-        test_loop(model, test_loader, device, col_dict, title)
+        t_save_dict = train_model(model, x_train, y_train, x_val, y_val, loss_fn, config, col_dict, save_dict, device)
+        #t_save_dict = train_model(model, train_loader, val_loader, loss_fn, config, col_dict, device)
+        test_loop(model, x_test, y_test, loss_fn, device, col_dict, title, config.num_classes) #(model, X, Y, loss_fn, device, col_dict,title, num_classes)
         #train_model(model, x_train, y_train, x_val, y_val, loss_fn, config, col_dict, device)
         #test_loop(model, x_text, y_test, device, col_dict, title)
+
+        title = save_dict['Run']
+        with open(f"/its/home/nn268/antvis/antvis/optics/pickles/{title}.pkl", 'wb+') as f:
+            pickle.dump(save_dict, f)
+
     return model
 
 

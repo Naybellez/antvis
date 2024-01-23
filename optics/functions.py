@@ -7,11 +7,11 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-import torch.nn as nn
+from torch import nn as nn
 from torch.nn import functional as F
 import random
 from sklearn.model_selection import train_test_split
-
+from torch.utils.data import DataLoader, Dataset
 
 #		GET DATA FUNCTIONS
 def import_imagedata(file_path): # import image data from dir
@@ -31,22 +31,26 @@ def import_imagedata(file_path): # import image data from dir
 	image_arr = np.array(images)
 	return image_arr, label_arr
 
-def get_data(file_path):
+def get_data(file_path, seed):
 	x, y = import_imagedata(file_path)
-	random_seed = random.seed()
+	random_seed = random.seed(seed)
 	x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=random_seed)
 	x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
 
+	#train_loader = DataLoader(list(zip(x_train, y_train)), shuffle =True, batch_size=16) # machinelearningmastery.com
+	#val_loader = DataLoader(list(zip(x_val, y_val)), shuffle =True, batch_size=16)
+	#test_loader = DataLoader(list(zip(x_test, y_test)), shuffle = True, batch_size=16)
 	return x_train, y_train, x_val, y_val, x_test, y_test
+	#return train_loader, val_loader, test_loader
 
 # 		ONE HOT ENCODE LABEL DATA 
-def label_oh_tf(lab, device, num_classes):	
+def label_oh_tf(lab, num_classes):	#device,
 	one_hot = np.zeros(num_classes)
 	lab = int(lab)
 	one_hot[lab] = 1
 	label = torch.tensor(one_hot)
 	label = label.to(torch.float32)
-	label = label.to(device) #
+	#label = label.to(device) #
 	return label
 
 
@@ -176,7 +180,8 @@ class  ImageProcessor():
 		im_chan = img.shape[2]
 		imgY, imgX = img.shape[0], img.shape[1]
 		tensor = self.tensoring(img)
-		tensor = tensor.reshape(1, im_chan, imgY, imgX)
+		#tensor = tensor.reshape(1, im_chan, imgY, imgX)
+		tensor = tensor.reshape(im_chan, imgY, imgX)
 		tensor = tensor.to(self.device)
 		return tensor
 	def split_channels(self, im):
@@ -200,17 +205,21 @@ class  ImageProcessor():
 	
 	#useful functions
 	def colour_size_tense(self, img_path, col:str, size, pad:int, unwrap=False):
+		#print(type(img_path))
 		if isinstance(img_path, str):
 			im = cv2.imread(img_path)
+			#print(im.shape)
+			#print(img_path)
 			#print(im.shape, '1')
 			#print(im)
 		else:
 			im= img_path
+			#print(im.shape)
 
 		if unwrap: # check if unwrap has been specified
 			if size[0] != size[1]: # double check that the desired image size is rectangular
 				im = Unwrap(im)
-
+		#print(im.shape)
 		if im.shape[2]==1: # if the image is b&w, no further processing. return im.
 			#im= cv2.resize(im, (size[0], size[1]))
 			im= self.to_tensor(im)
@@ -233,11 +242,15 @@ class  ImageProcessor():
 			img = img.squeeze()
 			img = img.permute(1,2,0)
 			img=np.array(img.cpu())*scale
-			plt.imshow(img)
-			plt.axis(False)
-			plt.show()
-			return img
-
+			
+		elif type(img) == np.ndarray:
+			img = img*scale
+		elif type(img) == str:
+			cv2.imread(img)
+		plt.imshow(img)
+		plt.axis(False)
+		plt.show()
+		return img
 
 
 
@@ -295,7 +308,141 @@ def print_top_results(best_optim, best_lossfn, best_lr, best_valaccuracy, best_e
 	print()
 	print(best_optim, best_lossfn, best_lr, best_valaccuracy, best_epoch)
 
+"""
+def import_imagedata(file_path): # import image data from dir
+	images = []
+	labels = []
+
+	#file_path = r'/its/home/nn268/optics/images/'
+
+	for file in os.listdir(file_path):
+		if file[0:4] == 'IDSW':
+			j = file_path+file
+			i=int(file[5:7]) -1
+			i = str(i)
+			labels.append(i)
+			images.append(j)
+	label_arr =np.array(labels)
+	image_arr = np.array(images)
+	return image_arr, label_arr
+
+def get_data(file_path):
+	x, y = import_imagedata(file_path)
+	random_seed = random.seed()
+	x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=random_seed)
+	x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
+
+	#train_loader = DataLoader(list(zip(x_train, y_train)), shuffle =True, batch_size=16) # machinelearningmastery.com
+	#val_loader = DataLoader(list(zip(x_val, y_val)), shuffle =True, batch_size=16)
+	#test_loader = DataLoader(list(zip(x_test, y_test)), shuffle = True, batch_size=16)
+	return x_train, y_train, x_val, y_val, x_test, y_test
+	#return train_loader, val_loader, test_loader
+"""
+
+class IDSWDataSetLoader(Dataset):
+	def __init__(self, col_dict, device, transform =True):
+		super(Dataset, self).__init__()
+		# load ds ?
+		self.file_path = r'/its/home/nn268/antvis/antvis/optics/AugmentedDS_IDSW/'
+		self.transform = transform
+		self.device = device
+		self.col_dict = col_dict
+		
+		images = []
+		labels = []
+
+		for file in os.listdir(self.file_path):
+			if file[0:4] == 'IDSW':
+				j = self.file_path+file
+				i=int(file[5:7]) -1
+				i = str(i)
+				labels.append(i)
+				images.append(j)
+		self.label_arr =np.array(labels)
+		self.image_arr = np.array(images)
+		
+
+		
+
+		#self.x_train, self.y_train, self.x_val, self.y_val, self.x_test, self.y_test = self.get_data(file_path)
+
+		#self.n_samples = self.x.shape[0] ?
+
+	def __len__(self):
+		# length of dataset
+		return len(self.image_arr)
+
+	def __getitem__(self, index):
+		#img = cv2.imread(self.image_arr[index])
+		#img = self.x[index]
+
+		label = self.label_arr[index]
+		imgs = self.image_arr[index]
+		#print('indexed label',label)
+
+		#print('t t t t',self.image_arr[index], 't t t t', self.image_arr[index].shape, 't t t t')
+
+		if self.transform:
+			prepro = ImageProcessor(self.device)# img_path, col:str, size, pad:int, unwrap=False):
+			img = [prepro.colour_size_tense(i, self.col_dict['colour'], self.col_dict['size'], self.col_dict['padding']) for i in imgs]
+			labels = [label_oh_tf(i, 11) for i in label]
+		else:
+			img = self.image_arr[index]
+		#print('img2',type(img),len(img), img)
+		#print('label2',type(label), len(label))
+		return img, labels
+
+	
+#prepro = ImageProcessor(device)
+#self.x_train = prepro.colour_size_tense(x_train, col_dict['colour'], col_dict['size'], col_dict['pad'])
+#self.x_val = prepro.colour_size_tense(x_val, col_dict['colour'], col_dict['size'], col_dict['pad'])
+#self.x_test = prepro.colour_size_tense(x_test , col_dict['colour'], col_dict['size'], col_dict['pad'])
+
+#self.y = label_oh_tf(11)
+"""train_loader = DataLoader(
+	list(zip(self.x_train, self.y_train)),
+	shuffle=True,
+	batch_size=16
+	)
+val_loader = DataLoader(
+	list(zip(self.x_val, self.y_val)),
+	shuffle=True,
+	batch_size=16
+	)
+test_loader = DataLoader(
+	list(zip(self.x_test, self.y_test)),
+	shuffle=True,
+	batch_size=16
+	)
+return train_loader, test_loader, val_loader"""
 
 
 
+"""		def _import_imagedata(self, file_path): 
+# import image data from dir
+images = []
+labels = []
 
+for file in os.listdir(file_path):
+	if file[0:4] == 'IDSW':
+		j = file_path+file
+		i=int(file[5:7]) -1
+		i = str(i)
+		labels.append(i)
+		images.append(j)
+label_arr =np.array(labels)
+image_arr = np.array(images)
+return image_arr, label_arr
+
+def get_data(self, file_path):
+# split data into sets
+x_arr, y_arr = self._import_imagedata(file_path)
+self.n_samples = len(x_arr) # get len of whole dataset
+
+random_seed = random.seed(3)
+
+x_train, x_test, y_train, y_test = train_test_split(x_arr, y_arr, test_size=0.3, random_state=random_seed)
+x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
+
+return x_train, y_train, x_val, y_val, x_test, y_test
+"""
