@@ -6,19 +6,25 @@ from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, Confusio
 import pickle
 import seaborn as sns
 
-def plot_confusion(predictions:list, actual:list, title:str, save_location= None, run_name=None):
-    predict_list = [int(t.argmax()) for t in predictions]
-    actual = [int(l.argmax()) for l in actual]
+def plot_confusion(predictions:list, actual:list, title:str, save_location =None):
+    sns.set()
+    predict_list = [int(t.argmax()) for t in predictions] ##
+    predict_list = [int(t.numpy()) for t in predictions]
+    actual = [int(l) for l in actual]
+
 
     actual = np.array(actual)
     predict_list = np.array(predict_list)
 
+    font1 = {'family':'serif','color':'darkblue','size':20}
+    font2 = {'family':'serif','color':'darkblue','size':15}
 
-    #FixedLocator locations (3), usually from a call to set_ticks, does not match the number of labels (11).
-    print(f'\n     {title}')
     train_epoch_matrix = confusion_matrix(actual, predict_list, labels= [0,1,2,3,4,5,6,7,8,9,10])
     disp= ConfusionMatrixDisplay(train_epoch_matrix, display_labels=[0,1,2,3,4,5,6,7,8,9,10])
-    disp.plot()
+    disp.plot(cmap='plasma')
+    plt.title(title, font1)
+    plt.xlabel('Predicted Label', font2)
+    plt.ylabel('Target Label', font2)
     if save_location != None:
         plt.savefig(save_location+'Conf_mtrx'+title+run_name+'.png', format='png')
     else:
@@ -41,11 +47,14 @@ def metrics(label, prediction): #TypeError: Singleton array tensor(3) cannot be 
 
 def learning_curve(t_loss, v_loss, save_location, title=''):
     lab = "Learning Curve"+title
-    plt.title(label="Learning Curve"+title, fontsize =30)
+    font1 = {'family':'serif','color':'darkblue','size':20}
+    font2 = {'family':'serif','color':'darkblue','size':15}
+    
     plt.plot(range(len(t_loss_list)), t_loss_list, label ='Training loss')
     plt.plot(range(len(v_loss_list)), v_loss_list, label='Validation loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
+    plt.title(label="Learning Curve"+title, font1)
+    plt.x_label('Epochs', font2)
+    plt.ylabel('Loss', font2)
     #plt.yscale("log")
     plt.legend()
     if save_location != None:
@@ -56,11 +65,14 @@ def learning_curve(t_loss, v_loss, save_location, title=''):
 
 def accuracy_curve(v_accuracy_list, t_accuracy_list, save_location, title=''):
     lab = "Accuracy Curve"+title
-    plt.title(label=lab, fontsize =30)
+    font1 = {'family':'serif','color':'darkblue','size':20}
+    font2 = {'family':'serif','color':'darkblue','size':15}
+
+    plt.title(label=lab, font1)
     plt.plot(range(len(t_accuracy_list)), t_accuracy_list, label ='Training accuracy')
     plt.plot(range(len(v_accuracy_list)), v_accuracy_list, label='Validation accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
+    plt.xlabel('Epochs', font2)
+    plt.ylabel('Accuracy', font2)
     plt.legend()
     if save_location != None:
         plt.savefig(save_location+lab+'.png', format='png')

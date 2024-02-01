@@ -36,6 +36,62 @@ def print_gpu_mem():
 
 def loop(model, x, y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
 	#model = model
+	if train:
+		model.train()
+	else:
+		model.eval()
+
+	predict_list = []
+	label_list = []
+	total_count = 0
+	num_correct = 0
+	current_loss = 0
+	colour = col_dict['colour']
+	size = col_dict['size']
+	pad = col_dict['padding']
+
+	prepro = ImageProcessor(device)
+
+	for idx, img in enumerate(x):
+
+		tense = prepro.colour_size_tense(img, colour, size, pad)
+
+		prediction = model.forward(tense) # tense
+		label = label_oh_tf(y[idx], num_classes).to(device)
+		loss = loss_fn(prediction, label)
+		
+
+		if prediction.argmax() == label.argmax():
+			num_correct +=1
+		
+		total_count+= 1 # **
+		
+		
+		if train:
+			optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
+			if scheduler:
+				scheduler.step()
+
+		# * current loss +=
+		current_loss += loss.item()  # *
+
+		#loss = loss.to('cpu')
+		#current_loss += loss.item()
+
+		predict_list.append(prediction.argmax().to('cpu'))
+		label_list.append(label.argmax().to('cpu'))#(label.to('cpu'))
+
+	if train:
+		return current_loss, predict_list, num_correct, label_list, model, optimizer #, lr_ls
+	else:
+		return current_loss, predict_list, num_correct, label_list
+
+
+
+"""def loop(model, x, y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
+	#model = model
 	#print('in loop, col_dict is a: ',type(col_dict), col_dict)
 	#total_samples = 0 #len(X) #?
 
@@ -68,7 +124,9 @@ def loop(model, x, y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5
 		#	display = False
 
 		tense = prepro.colour_size_tense(img, colour, size, pad)
-		#print(tense.shape)
+		#print(tense.shape, type(tense))
+		#prepro.view(tense, 5)
+		#print('label raw: ',y[idx])
 		#if display:
 		#	print('train?', train, idx)
 		#	print('Avatar Whan')
@@ -77,6 +135,8 @@ def loop(model, x, y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5
 		prediction = model.forward(tense) # tense
 		#print('y', y)
 		label = label_oh_tf(y[idx], num_classes).to(device)
+		#print('img number: ',img[59:61])
+		#print('label: ', y[idx])
 		
 		#if train:
 		#	lr_ls.append(optimizer.param_groups[0]['lr'])
@@ -130,7 +190,7 @@ def loop(model, x, y, epoch, loss_fn, device, col_dict, num_classes, pad_size =5
 	if train:
 		return current_loss, predict_list, num_correct, label_list, model, optimizer #, lr_ls
 	else:
-		return current_loss, predict_list, num_correct, label_list
+		return current_loss, predict_list, num_correct, label_list"""
 
 # editing loop to encorperate dataloader
 def batch_loop(model, loader, epoch, loss_fn, device, col_dict, num_classes, pad_size =5, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
@@ -208,7 +268,7 @@ def batch_loop(model, loader, epoch, loss_fn, device, col_dict, num_classes, pad
 		#	print('Avatar Roku')
 		#	print_gpu_mem()
 
-		loss = loss.to('cpu')
+		#loss = loss.to('cpu')
 		current_loss += loss.item()
 		#if display:
 		#	print('Avatar Aang')

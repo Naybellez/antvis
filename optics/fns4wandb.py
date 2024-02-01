@@ -381,7 +381,7 @@ def pipeline(config, col_dict,save_dict, title, device, seed):
     return model
 
 # below works!!!!! 290124
-def train(config=None):
+def train(device,col_dict, save_dict, config=None):
     # lists for save dict
     t_loss_list = []
     v_loss_list =[]
@@ -394,8 +394,8 @@ def train(config=None):
     
     with wandb.init(config=config):
         config = wandb.config
-        
-        x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path= r'/its/home/nn268/antvis/antvis/optics/AugmentedDS_IDSW/', seed=seed)
+
+        x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path= r'/its/home/nn268/antvis/antvis/optics/AugmentedDS_IDSW/', seed= random.randint(0, 50))
         
         #model =smallnet3(in_chan=3, f_lin_lay=67968, l_lin_lay=11, ks=(3,5)).to(device) #10368
         model = choose_model(config).to(device)
@@ -410,7 +410,7 @@ def train(config=None):
 
         optimizer = build_optimizer(model, config.optimizer, config.learning_rate, config.weight_decay)
 
-        for epoch in range(config.epochs):
+        for epoch in tqdm(range(config.epochs)):
             # current_loss, predict_list, num_correct, label_list, model, optimizer
             t_loss, t_predict_list_, t_num_correct, t_label_list_, model, optimizer = loop(model, x_train, y_train, epoch, loss_fn, device, col_dict, num_classes=11, optimizer=optimizer)
             t_accuracy = (t_num_correct /len(x_train))*100
@@ -459,14 +459,20 @@ def train(config=None):
     save_dict['v_loss_list'] = v_loss_list #[c.to('cpu') for c in v_loss_list]
     save_dict['v_predict_list'] = [[c.to('cpu') for c in k]for k in v_predict_list]#[[c.to('cpu') for c in k]for k in v_predict_list] # [c.to('cpu') for c in v_predict_list]
     save_dict['v_accuracy_list'] = v_accuracy_list #
-    save_dict['t_labels'] = [[c.to('cpu') for c in k]for k in t_label_list]
-    save_dict['v_labels'] = [[c.to('cpu') for c in k] for k in v_label_list]
-
+    save_dict['t_labels'] = t_label_list #[[c.to('cpu') for c in k]for k in t_label_list]
+    save_dict['v_labels'] = v_label_list #[[c.to('cpu') for c in k] for k in v_label_list]
+    
     title = save_dict['Run']
+    test_predictions, test_y, test_accuracy = test_loop(model, x_test, y_test, loss_fn, device, col_dict, title, config.num_classes)
+    save_dict['test_predictions']= [c.to('cpu') for c in test_predictions]
+    save_dict['test_labels'] = test_y
+    save_dict['test_acc'] = test_accuracy
+
+    
     with open(f"/its/home/nn268/antvis/antvis/optics/pickles/{title}.pkl", 'wb+') as f:
         pickle.dump(save_dict, f)
         
-    test_loop(model, x_test, y_test, loss_fn, device, col_dict, title, config.num_classes)
+    return model
 
 #                                LOGGING 
 
