@@ -317,3 +317,32 @@ def test_loop(model, X, Y, loss_fn, device, col_dict,title, num_classes):
 		#log_test_score(acc, accuracy, X)
 		print('TEST ACCURACY: ',accuracy)
 	return predict_list, Y, accuracy
+
+def test_loop_batch(model, loader, loss_fn, device, col_dict,title, num_classes):
+	model = model.eval()
+	predict_list = []
+	total_count =0
+	num_correct = 0
+	correct = 0
+	colour = col_dict['colour']
+	size = col_dict['size']
+
+	with torch.no_grad():
+		for x_batch, y_batch in loader:
+			#prepro = ImageProcessor(device)
+			#tense = prepro.colour_size_tense(img, colour, size, pad=5)
+			prediction = model.forward(tense)
+			#label = label_oh_tf(Y[idx], num_classes)
+
+			if prediction.argmax()==y_batch.argmax():
+				num_correct +=1
+			total_count +=1
+			correct +=(prediction.argmax()==y_batch.argmax()).sum().item()
+
+		acc = num_correct/total_count
+		accuracy = 100*(acc)
+
+		#X = list(X)
+		#log_test_score(acc, accuracy, X)
+		print('TEST ACCURACY: ',accuracy)
+	return predict_list, y_batch, accuracy

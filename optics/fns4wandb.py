@@ -27,7 +27,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import wandb
 import pprint
 
-from loop_fns import loop, test_loop
+from loop_fns import loop, test_loop, batch_loop, test_loop_batch
 from functions import import_imagedata, get_data, label_oh_tf,  Unwrap, ImageProcessor
 
 from architectures import vgg16net, smallnet1, smallnet2, smallnet3, build_net
@@ -473,6 +473,115 @@ def train(device,col_dict, save_dict, config=None):
         pickle.dump(save_dict, f)
         
     return model
+
+
+# train with dataloader
+from functions import IDSWDataSetLoader
+def train_DL(device,col_dict, save_dict, config=None):
+    # lists for save dict
+    t_loss_list = []
+    v_loss_list =[]
+    t_predict_list = []
+    t_label_list = []
+    v_predict_list = []
+    v_label_list = []
+    t_accuracy_list= []
+    v_accuracy_list= []
+    
+    with wandb.init(config=config):
+        config = wandb.config
+
+        # import data
+        file_path = r'/its/home/nn268/antvis/antvis/optics/AugmentedDS_IDSW/'
+        x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path, seed=8)
+        train_loader = IDSWDataSetLoader(x_train, y_train, col_dict=col_dict, device=device)
+        train_loader = DataLoader(train_loader, shuffle=False, batch_size=4)
+        val_loader = IDSWDataSetLoader(x_val, y_val, col_dict=col_dict, device=device)
+        val_loader = DataLoader(val_loader, shuffle=False, batch_size=4)
+        test_loader = IDSWDataSetLoader(x_test, y_test, col_dict=col_dict, device=device)
+        test_loader = DataLoader(test_loader, shuffle=False, batch_size=4)
+        #x_train, y_train, x_test, y_test, x_val, y_val = IDSWDataSetLoader(col_dict, device)
+        #train_data_loader = DataLoader([x_train, y_train], batch_size=4, shuffle=True)
+        #test_data_loader = DataLoader([x_test, y_test], batch_size=4, shuffle=True)
+        #val_data_loader = DataLoader([x_val, y_val], batch_size=4, shuffle=True)
+        #model =smallnet3(in_chan=3, f_lin_lay=67968, l_lin_lay=11, ks=(3,5)).to(device) #10368
+        model = choose_model(config).to(device)
+        
+        if config.loss_fn == 'MSE':
+            loss_fn = nn.MSELoss()
+        elif config.loss_fn == 'CrossEntropy':
+            loss_fn = nn.CrossEntropyLoss()
+
+        e_count = 0
+         # *
+
+        optimizer = build_optimizer(model, config.optimizer, config.learning_rate, config.weight_decay)
+
+        for epoch in tqdm(range(config.epochs)):
+            # current_loss, predict_list, num_correct, label_list, model, optimizer
+            t_loss, t_predict_list_, t_num_correct, t_label_list_, model, optimizer = batch_loop(model, train_loader, epoch, loss_fn, device, col_dict, num_classes=11, optimizer=optimizer)
+            t_accuracy = (t_num_correct /len(x_train))*100
+            t_loss_list.append(t_loss)
+            t_predict_list.append(t_predict_list_)
+            t_label_list.append(t_label_list_)
+            t_accuracy_list.append(t_accuracy)
+
+            v_loss, v_predict_list_, v_num_correct, v_label_list_= batch_loop(model, val_loader, epoch, loss_fn, device,col_dict,num_classes=11, train=False)
+            v_accuracy= (v_num_correct / len(x_val))*100
+            v_loss_list.append(v_loss)
+            v_predict_list.append(v_predict_list_)
+            v_label_list.append(v_label_list_)
+            v_accuracy_list.append(v_accuracy)
+
+            t_avg_loss =t_loss/len(x_train)
+            v_avg_loss = v_loss /len(x_val)
+
+            e_count +=1
+            # logging
+            wandb.log({'avg_train_loss': t_avg_loss, 'epoch':epoch})
+            wandb.log({'avg_val_loss': v_avg_loss, 'epoch':epoch})
+
+            wandb.log({'train_loss': t_loss, 'epoch':epoch})
+            wandb.log({'val_loss': v_loss, 'epoch':epoch})
+
+            wandb.log({'train_correct': t_num_correct, 'epoch':epoch})
+            wandb.log({'val_correct': v_num_correct, 'epoch':epoch})
+
+            wandb.log({'train_accuracy_%': t_accuracy, 'epoch':epoch})
+            wandb.log({'val_accuracy_%': v_accuracy, 'epoch':epoch})
+
+            wandb.log({'t_labels': t_label_list, 'epoch':epoch})
+            wandb.log({'v_labels': v_label_list, 'epoch':epoch})
+
+            wandb.log({'t_predictions': t_predict_list, 'epoch':epoch})
+            wandb.log({'v_predictions': v_predict_list, 'epoch':epoch})
+
+            # add lists to save dict after all epochs run
+    save_dict['Current_Epoch'] = config['epochs']
+    save_dict['training_samples'] = len(x_train)# should this be the whole list for future graphs...?
+    save_dict['validation_samples'] = len(x_val)
+    save_dict['t_loss_list'] = t_loss_list #[c.to('cpu') for c in t_loss_list]
+    save_dict['t_predict_list'] = [[c.to('cpu') for c in k]for k in t_predict_list] #[[c.to('cpu') for c in k]for k in t_predict_list]  # [c.to('cpu') for c in t_predict_list] 
+    save_dict['t_accuracy_list'] = t_accuracy_list #
+    save_dict['v_loss_list'] = v_loss_list #[c.to('cpu') for c in v_loss_list]
+    save_dict['v_predict_list'] = [[c.to('cpu') for c in k]for k in v_predict_list]#[[c.to('cpu') for c in k]for k in v_predict_list] # [c.to('cpu') for c in v_predict_list]
+    save_dict['v_accuracy_list'] = v_accuracy_list #
+    save_dict['t_labels'] = t_label_list #[[c.to('cpu') for c in k]for k in t_label_list]
+    save_dict['v_labels'] = v_label_list #[[c.to('cpu') for c in k] for k in v_label_list]
+    
+    title = save_dict['Run']
+    test_predictions, test_y, test_accuracy = test_loop_batch(model, test_loader, loss_fn, device, col_dict, title, config.num_classes)
+    save_dict['test_predictions']= [c.to('cpu') for c in test_predictions]
+    save_dict['test_labels'] = test_y
+    save_dict['test_acc'] = test_accuracy
+
+    
+    with open(f"/its/home/nn268/antvis/antvis/optics/pickles/{title}.pkl", 'wb+') as f:
+        pickle.dump(save_dict, f)
+        
+    return model
+
+
 
 #                                LOGGING 
 
