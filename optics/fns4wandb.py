@@ -24,13 +24,13 @@ from IPython.display import clear_output
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 
-import wandb
+#import wandb
 import pprint
 
-from loop_fns import loop, test_loop, batch_loop, test_loop_batch
+from loop_fns import loop, test_loop
 from functions import import_imagedata, get_data, label_oh_tf,  Unwrap, ImageProcessor
 
-from architectures import vgg16net, smallnet1, smallnet2, smallnet3, build_net
+#from architectures import sevennet, smallnet1, smallnet2, smallnet3, build_net
 from copy import deepcopy
 import pickle
 from torch.utils.data import DataLoader, Dataset
@@ -77,19 +77,33 @@ def choose_model(config):
     #print(config.model_name)
     if config.model_name == 'build_net':
         return build_net(config.lin_layer_size,config.dropout, config.first_lin_lay, config.kernal_size, config.channel_num)
-    elif config.model_name == 'smallnet1':
+    elif config.model_name == '4c3l':
         return smallnet1(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks= config.ks)
-    elif config.model_name == 'smallnet2':
+    elif config.model_name == '3c2l':
         return smallnet2(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks = config.ks)
-    elif config.model_name == 'smallnet3':
+    elif config.model_name == '2c2l':
         return smallnet3(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks=config.ks)
-    elif config.model_name == 'vgg16net':
-        return vgg16net(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks=config.ks, dropout= config.dropout)
+    elif config.model_name == '7c3l':
+        return sevennet(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks=config.ks, dropout= config.dropout)
+    elif config.model_name == 'vgg16':
+        model_vgg16 = vgg16(weights="IMAGENET1K_V1")
+        vgg_feats = model_vgg16.features
+        vgg_classifier = model_vgg16.classifier
+        vgg_classifier.pop(6)
+
+        vgg = nn.Sequential(
+            vgg_feats,
+            Flattern(),
+            vgg_classifier,
+            nn.Linear(4096,11),
+            nn.Softmax(dim=0),
+            )
+        return vgg
     else:
         print('Model Name Not Recognised')
 
 #           PIPLINE FUNCTIONS
-from loop_fns import print_gpu_mem
+#from loop_fns import print_gpu_mem
                                 # HP Sweep
 def hp_sweep(config, col_dict,save_dict, device,seed,model, loss_fn, optimizer, scheduler, best_acc=0, data=None):
     #if data==None:
@@ -220,6 +234,121 @@ def hp_sweep(config, col_dict,save_dict, device,seed,model, loss_fn, optimizer, 
         e_count +=1
 
     return model, save_dict, x_test, y_test
+
+def hp_sweep_DL(config, col_dict,save_dict, device,seed,model,best_acc=0, data=None):
+    
+    file_path = r'//smbhome.uscs.susx.ac.uk/nn268/Documents/PHD/antvis/optics/AugmentedDS_IDSW'
+    x_train, y_train, x_val, y_val, x_test, y_test = get_data(file_path, seed=8)
+    train_loader = IDSWDataSetLoader(x_train, y_train, col_dict=col_dict, device=device)
+    train_loader = DataLoader(train_loader, shuffle=False, batch_size=4)
+    val_loader = IDSWDataSetLoader(x_val, y_val, col_dict=col_dict, device=device)
+    val_loader = DataLoader(val_loader, shuffle=False, batch_size=4)
+    test_loader = IDSWDataSetLoader(x_test, y_test, col_dict=col_dict, device=device)
+    test_loader = DataLoader(test_loader, shuffle=False, batch_size=4)
+
+    #model = choose_model(config).to(device)
+    
+    if config.loss_fn == 'MSE':
+            loss_fn = nn.MSELoss()
+    elif config.loss_fn == 'CrossEntropy':
+        loss_fn = nn.CrossEntropyLoss()
+    optimizer = build_optimizer(model, config.optimizer, config.learning_rate, config.weight_decay)
+    scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=config.scheduler, last_epoch=-1)
+
+
+    e_count = 0
+    t_loss_list = []
+    v_loss_list = []#
+    t_predict_list = []
+    v_predict_list = []#
+    t_accuracy_list = []#
+    v_accuracy_list = []
+    t_label_list = []#
+    v_label_list = []
+    #prepro = ImageProcessor(device)
+    
+    
+    for epoch in tqdm(range(config.epochs)):
+
+        t_correct =0
+        v_correct =0
+
+        model.train()
+        print('training...')
+
+      
+        t_loss, t_predictions, t_num_correct,t_labels, model, optimizer = batch_loop(model, train_loader, epoch, loss_fn, device, col_dict, num_classes=config.num_classes, pad_size=col_dict['padding'],optimizer=optimizer, scheduler=scheduler)
+
+        t_accuracy = (t_num_correct /len(x_train))*100
+        t_accuracy_list.append(t_accuracy)
+        t_label_list.append(t_labels)
+        t_predict_list.append(t_predictions)
+        t_loss_list.append(t_loss.item())
+        
+        model.eval()
+        print('validating...') #current_loss, predict_list, num_correct
+        v_loss, v_predictions, v_num_correct, v_labels= batch_loop(model, val_loader, epoch, loss_fn, device,col_dict, num_classes= config.num_classes, train=False) 
+        
+        v_accuracy= (v_num_correct / len(x_val))*100
+        v_accuracy_list.append(v_accuracy)
+        v_label_list.append(v_labels)
+        v_predict_list.append(v_predictions)
+        v_loss_list.append(v_loss.item())
+
+        
+        
+        # logging
+        #t_avg_loss =t_loss/len(x_train)
+        #v_avg_loss = v_loss /len(x_val)
+
+        e_count +=1
+        # logging
+        #wandb.log({'avg_train_loss': t_avg_loss, 'epoch':epoch})
+        #wandb.log({'avg_val_loss': v_avg_loss, 'epoch':epoch})
+
+        wandb.log({'train_loss': t_loss, 'epoch':epoch})
+        wandb.log({'val_loss': v_loss, 'epoch':epoch})
+
+        wandb.log({'train_correct': t_num_correct, 'epoch':epoch})
+        wandb.log({'val_correct': v_num_correct, 'epoch':epoch})
+
+        wandb.log({'train_accuracy_%': t_accuracy, 'epoch':epoch})
+        wandb.log({'val_accuracy_%': v_accuracy, 'epoch':epoch})
+
+        wandb.log({'t_labels': t_label_list, 'epoch':epoch})
+        wandb.log({'v_labels': v_label_list, 'epoch':epoch})
+
+        wandb.log({'t_predictions': t_predict_list, 'epoch':epoch})
+        wandb.log({'v_predictions': v_predict_list, 'epoch':epoch})
+
+            # add lists to save dict after all epochs run
+        save_dict['Current_Epoch'] = config['epochs']
+        save_dict['training_samples'] = len(x_train)# should this be the whole list for future graphs...?
+        save_dict['validation_samples'] = len(x_val)
+        save_dict['t_loss_list'] = t_loss_list #[c.to('cpu') for c in t_loss_list]
+        save_dict['t_predict_list'] = [[c.to('cpu') for c in k]for k in t_predict_list] #[[c.to('cpu') for c in k]for k in t_predict_list]  # [c.to('cpu') for c in t_predict_list] 
+        save_dict['t_accuracy_list'] = t_accuracy_list #
+        save_dict['v_loss_list'] = v_loss_list #[c.to('cpu') for c in v_loss_list]
+        save_dict['v_predict_list'] = [[c.to('cpu') for c in k]for k in v_predict_list]#[[c.to('cpu') for c in k]for k in v_predict_list] # [c.to('cpu') for c in v_predict_list]
+        save_dict['v_accuracy_list'] = v_accuracy_list #
+        save_dict['t_labels'] = t_label_list #[[c.to('cpu') for c in k]for k in t_label_list]
+        save_dict['v_labels'] = v_label_list #[[c.to('cpu') for c in k] for k in v_label_list]
+
+        e_count +=1
+        
+    title = save_dict['Run']
+    # TESTING
+
+    test_predictions, test_y, test_accuracy = test_loop_batch(model, test_loader, loss_fn, device, col_dict, title, config.num_classes)
+    save_dict['test_predictions']= [c.to('cpu') for c in test_predictions]
+    save_dict['test_labels'] = test_y
+    save_dict['test_acc'] = test_accuracy
+    
+    with open(f"/its/home/nn268/antvis/antvis/optics/pickles/{title}.pkl", 'wb+') as f:
+        pickle.dump(save_dict, f)
+
+    return model, save_dict
+
 
                                 #Training
             

@@ -8,11 +8,11 @@ import torch
 import torch.nn as nn
 
 # Define model - copy of what worked on MNIST
-def vgg16net(in_chan, f_lin_lay, l_lin_lay, ks, dropout):
-    class vgg16TorchNet(nn.Module):
+def sevennet(in_chan, f_lin_lay, l_lin_lay, ks, dropout):
+    class SevenNet(nn.Module):
         # 7 conv layers, 3 linear
         def __init__(self):
-            super(vgg16TorchNet, self).__init__()
+            super(SevenNet, self).__init__()
             self.flatten = nn.Flatten()
 
             self.conv_layers = nn.Sequential(  # 1, 2, 144, 452
@@ -57,7 +57,7 @@ def vgg16net(in_chan, f_lin_lay, l_lin_lay, ks, dropout):
           x = self.linear_1(x)
           #print('lin1 x', x)
           return x
-    model = vgg16TorchNet()
+    model = SevenNet()
     return model
 
     

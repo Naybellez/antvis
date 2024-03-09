@@ -12,6 +12,13 @@ from torch.nn import functional as F
 import random
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
+import pprint
+import csv
+import json
+from datetime import date
+import collections
+pp = pprint.PrettyPrinter(indent=4)
+
 
 #		GET DATA FUNCTIONS
 def import_imagedata(file_path): # import image data from dir
@@ -104,153 +111,166 @@ def Unwrap(imgIn): #Amani unwrap fn
     result = Unwrap_(img, xmap, ymap)
 
     return result
-	
 
-#	PREPROCESSING CLASS
-# 	DEALS WITH: 	COLOUR	SCALE	 TENSOR
+from numpy.linalg import norm
+#   PREPROCESSING CLASS
+#   DEALS WITH: 	COLOUR	SCALE	 TENSOR
 class  ImageProcessor():
-	def __init__(self, device):
-		self.device=device
+    def __init__(self, device):
+        self.device=device
 
-	#  colour functions
-	def two_channels(self, g, r):
-		new_im = [[],[]]
-		new_im[0] = g
-		new_im[1] = r
-		new_im = np.array(new_im)
-		new_im = np.transpose(new_im, (1,2,0))
-		return new_im
-	
-	from numpy.linalg import norm
+    #  colour functions
+    def two_channels(self, g, r):
+        new_im = [[],[]]
+        new_im[0] = g
+        new_im[1] = r
+        new_im = np.array(new_im)
+        new_im = np.transpose(new_im, (1,2,0))
+        return new_im
 
-	def luminance(self, img):
-		r,g,b = self.split_channels(img)
-		lum = (0.114*b)+(0.587*g)+(0.299*r)
-		mean_lum = np.mean(lum)
-		return mean_lum
+    
 
-	def blank_padding(self, img, new_size:tuple):
-		
-		# create a averge luminunce padding
-		# to turn images into a 224224 sqaure
-		# for input into vgg16 and resnet
-		# resize/ scale incoming image. (226,72)
-		#print(img.shape)
-		img = cv2.resize(img, [224, 72]) #h w
-		#print(img.shape)
+    def luminance(self, img):
+        r,g,b = self.split_channels(img)
+        lum = (0.114*b)+(0.587*g)+(0.299*r)
+        mean_lum = np.mean(lum)
+        return mean_lum
+    
+    def blank_padding(self, img, final_size:list): 
 
-		w = new_size[0]
-		h = new_size[1]    
-		
-		delta_w = w - img.shape[1]
-		delta_h = h - img.shape[0]
-		half_delta_h = int(np.round(delta_h/2, decimals=0))
+        w = final_size[1]
+        h = final_size[0]
+        try:
+            if img.shape[0] > h:
+                img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
 
-		# calc avg luminance of image
-		avg_lum = int(self.luminance(img))
-		# create blank np array of output size
-		# fill with avg luminance
-		
-		new_x = np.full((h, w, 3), avg_lum) # h w c #avg_lum
-		new_x[half_delta_h:-half_delta_h,:,:] = img #
-		
-		return new_x
-		
+            if img.shape[1] > w:
+                img =cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
+  
+        except Exception as e:
+            print(f"Error occurred: {e}")
 
-	# padding?
-	def padding(self, img, pad_size):
-		left_x = img[:,:pad_size,:] # h, w, c
-		right_x = img[:,-pad_size:,:]
-		y = img.shape[0]
-		x = img.shape[1]+(pad_size*2)
-		new_x = np.full((y, x, 3),255) # h w c
-		new_x[:,:pad_size,:] = right_x
-		new_x[:,pad_size:-pad_size,:] = img
-		new_x[:,-pad_size:,:] = left_x
-		return new_x
+        
 
-	# tenor functions
-	def tensoring(self, img):
-		tense = torch.tensor(img, dtype=torch.float32)
-		tense = F.normalize(tense)
-		tense = tense.permute(2, 0, 1)
-		return tense
+        delta_w = w -img.shape[1]
+        delta_h = h-img.shape[0]
 
-	def to_tensor(self, img):
-		im_chan = img.shape[2]
-		imgY, imgX = img.shape[0], img.shape[1]
-		tensor = self.tensoring(img)
-		#tensor = tensor.reshape(1, im_chan, imgY, imgX)
-		tensor = tensor.reshape(im_chan, imgY, imgX)
-		tensor = tensor.to(self.device)
-		return tensor
-	def split_channels(self, im):
-			r = im[:,:,2]
-			g = im[:,:,1]
-			b = im[:,:,0]
-			return r,g,b
-	def im_channels(self,im,col):
-		r,g,b = self.split_channels(im)
-		if col.lower() == 'nored':
-			im = self.two_channels(b, g)
-		elif col.lower() == 'noblue':
-			im = self.two_channels(g, r)
-		elif col.lower() == 'nogreen':
-			im = self.two_channels(b, r)
-		elif col.lower() == 'grey':
-			im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-		elif col.lower() =='colour' or col == 'color':
-			pass
-		return im
-	
-	#useful functions
-	def colour_size_tense(self, img_path, col:str, size, pad:int, unwrap=False):
-		#print(type(img_path))
-		if isinstance(img_path, str):
-			im = cv2.imread(img_path)
-			#print(im.shape)
-			#print(img_path)
-			#print(im.shape, '1')
-			#print(im)
-		else:
-			im= img_path
-			#print(im.shape)
+        half_delta_h = int(np.floor(delta_h/2))
+        half_delta_w = int(np.floor(delta_w/2))
 
-		if unwrap: # check if unwrap has been specified
-			if size[0] != size[1]: # double check that the desired image size is rectangular
-				im = Unwrap(im)
-		#print(im.shape)
-		if im.shape[2]==1: # if the image is b&w, no further processing. return im.
-			#im= cv2.resize(im, (size[0], size[1]))
-			im= self.to_tensor(im)
-			return(im)
+        avg_lum = int(self.luminance(img)) 
+        new_x = np.full((h,w,3), avg_lum) 
+        if img.shape[1]%2 ==0: 
+            if img.shape[0]%2 == 0: 
+                if half_delta_w == 0:
+                    if half_delta_h ==0:
+                        new_x[:,:,:] = img # h=72 w=224
+                    else:
+                        new_x[half_delta_h:-half_delta_h,:,:] = img
+                else:
+                    new_x[half_delta_h:-half_delta_h,half_delta_w:-half_delta_w,:] = img
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-half_delta_w,:] = img
+        else:
+            if img.shape[0]%2 == 0:
+                new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
+        print(new_x.shape)
+        return new_x
 
-		
-		im = self.im_channels(im,col)
 
-		im = cv2.resize(im, (size[0], size[1])) # resize the image
+    # padding?
+    def padding(self, img, pad_size):
+        left_x = img[:,:pad_size,:] # h, w, c
+        right_x = img[:,-pad_size:,:]
+        y = img.shape[0]
+        x = img.shape[1]+(pad_size*2)
+        new_x = np.full((y, x, 3),255) # h w c
+        new_x[:,:pad_size,:] = right_x
+        new_x[:,pad_size:-pad_size,:] = img
+        new_x[:,-pad_size:,:] = left_x
+        return new_x
 
-		if pad > 0: # if padding has been specified...
-			im = self.padding(img=im, pad_size=pad)
+    # tenor functions
+    def tensoring(self, img):
+        tense = torch.tensor(img, dtype=torch.float32)
+        tense = F.normalize(tense)
+        tense = tense.permute(2, 0, 1)
+        return tense
 
-		im = self.to_tensor(im) 
+    def to_tensor(self, img):
+        im_chan = img.shape[2]
+        imgY, imgX = img.shape[0], img.shape[1]
+        tensor = self.tensoring(img)
+        #tensor = tensor.reshape(1, im_chan, imgY, imgX)
+        tensor = tensor.reshape(im_chan, imgY, imgX)
+        tensor = tensor.to(self.device)
+        return tensor
+    def split_channels(self, im):
+            r = im[:,:,2]
+            g = im[:,:,1]
+            b = im[:,:,0]
+            return r,g,b
+    def im_channels(self,im,col):
+        r,g,b = self.split_channels(im)
+        if col.lower() == 'nored':
+            im = self.two_channels(b, g)
+        elif col.lower() == 'noblue':
+            im = self.two_channels(g, r)
+        elif col.lower() == 'nogreen':
+            im = self.two_channels(b, r)
+        elif col.lower() == 'grey':
+            im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        elif col.lower() =='colour' or col == 'color':
+            pass
+        return im
 
-		return im
+    #useful functions
+    def colour_size_tense(self, img_path, col:str, size, pad:int,vg =False, unwrap=False):
 
-	def view(self, img, scale:int):
-		if type(img) == torch.Tensor:
-			img = img.squeeze()
-			img = img.permute(1,2,0)
-			img=np.array(img.cpu())*scale
-			
-		elif type(img) == np.ndarray:
-			img = img*scale
-		elif type(img) == str:
-			cv2.imread(img)
-		plt.imshow(img)
-		plt.axis(False)
-		plt.show()
-		return img
+        if isinstance(img_path, str):
+            im = cv2.imread(img_path)
+        else:
+            im= img_path
+
+
+        if unwrap: 
+            if size[0] != size[1]: 
+                im = Unwrap(im)
+        print(im.shape)
+        if im.shape[2]==1: 
+            im= self.to_tensor(im)
+            return(im)
+
+
+        im = self.im_channels(im,col)
+
+        im = cv2.resize(im, (size[0], size[1])) # resize the image
+
+        if pad > 0: # if padding has been specified...
+            im = self.padding(img=im, pad_size=pad)
+        if vg:
+            im = self.blank_padding(im, (224,224)) 
+        print(im.shape)
+        im = self.to_tensor(im) 
+        print(im.shape)
+        return im
+
+    def view(self, img, scale:int):
+        if type(img) == torch.Tensor:
+            img = img.squeeze()
+            img = img.permute(1,2,0)
+            img=np.array(img.cpu())*scale
+
+        elif type(img) == np.ndarray:
+            img = img*scale
+        elif type(img) == str:
+            cv2.imread(img)
+        plt.imshow(img)
+        plt.axis(False)
+        plt.show()
+        return img
 
 
 
@@ -284,29 +304,29 @@ def yaw(image, pixels):
 
 # Helpful printing functions. Could probably be deleated
 def print_run_header(learning_rate, optim, loss_fn):
-	print('\n')
-	print('LR: ', learning_rate)
-	print('optimiser ', optim)
-	print('loss fn: ', loss_fn)
+    print('\n')
+    print('LR: ', learning_rate)
+    print('optimiser ', optim)
+    print('loss fn: ', loss_fn)
 
 def print_run_type(run_type: str):
-	print('                  ----------------------')
-	print(f' \n                  {run_type}... \n')
-	print('                  ----------------------')
+    print('                  ----------------------')
+    print(f' \n                  {run_type}... \n')
+    print('                  ----------------------')
 
 def check_best_accuracy(v_accuracy_list, best_valaccuracy):
-	if v_accuracy_list[-1] > best_valaccuracy:
-		best_valaccuracy = v_accuracy_list[-1]
-		best_optim = optimizer
-		best_lossfn = loss_fn
-		best_lr = learning_rate
-		best_epoch = epoch
-	return best_valaccuracy, best_optim, best_lossfn, best_lr, best_epoch
+    if v_accuracy_list[-1] > best_valaccuracy:
+        best_valaccuracy = v_accuracy_list[-1]
+        best_optim = optimizer
+        best_lossfn = loss_fn
+        best_lr = learning_rate
+        best_epoch = epoch
+    return best_valaccuracy, best_optim, best_lossfn, best_lr, best_epoch
 
 def print_top_results(best_optim, best_lossfn, best_lr, best_valaccuracy, best_epoch):
-	print('Top results from hyperparameter sweep:')
-	print()
-	print(best_optim, best_lossfn, best_lr, best_valaccuracy, best_epoch)
+    print('Top results from hyperparameter sweep:')
+    print()
+    print(best_optim, best_lossfn, best_lr, best_valaccuracy, best_epoch)
 
 """
 def import_imagedata(file_path): # import image data from dir
@@ -340,86 +360,107 @@ def get_data(file_path):
 """
 
 class IDSWDataSetLoader(Dataset):
-	def __init__(self, x, y, col_dict, device): # transform =True
-		super(Dataset, self).__init__()
-		# load ds ?
-		#self.transform = transform
-		self.device = device
-		self.col_dict = col_dict
-		#print(type(file_paths), len(file_paths), file_paths)
-		self.img_path = x
-		#print(type(self.img_path))
-		self.labels = y
-		#print(type(self.labels))
-		#images = []
-		#labels = []
-		
+    def __init__(self, x, y, col_dict, device): # transform =True
+        super(Dataset, self).__init__()
 
-		"""for file in os.listdir(self.file_path):
-			if file[0:4] == 'IDSW':
-				label = self.file_path+file
-				img_path=int(file[5:7]) -1
-				img_path = str(img_path)
-				self.data.append([img_path, label])"""
-				#labels.append(img_path)
-				#images.append(label)
-		#self.label_arr =np.array(labels)
-		#self.image_arr = np.array(images)
-		self.class_map = {"1":0,"2": 1,
-							"3":2, "4":3,
-							"5":4, "6": 5,
-							"7":6, "8":7,
-							"9":8, "10": 9,
-							"11":10}
-		#self.img_dim =(3, 452, 144) # the dim you want the data
-		#self.x_train, self.y_train, self.x_val, self.y_val, self.x_test, self.y_test = self.get_data(file_path)
-		#self.n_samples = self.x.shape[0] ?
-		#print(self.data)
+        self.device = device
+        self.col_dict = col_dict
 
-	def __len__(self):
-		# length of dataset
-		return len(self.img_path)
+        self.img_path = x
+        self.labels = y
 
-	def __getitem__(self, idx, transform=False):
-		img = cv2.imread(self.img_path[idx])
-		#print(type(img))
-		self.transform = transform
+        self.class_map = {"1":0,"2": 1,
+                            "3":2, "4":3,
+                            "5":4, "6": 5,
+                            "7":6, "8":7,
+                            "9":8, "10": 9,
+                            "11":10}
 
-		im_chan = img.shape[2]
-		imgY, imgX = img.shape[0], img.shape[1]
 
-		tense = torch.tensor(img, dtype=torch.float32)
-		tense = F.normalize(tense)
-		tense = tense.permute(2, 0, 1)
-		#tensor = tensor.reshape(1, im_chan, imgY, imgX)
-		tensor = tense.reshape(im_chan, imgY, imgX)
-		#tensor = tensor.to(self.device)
-		label = label_oh_tf(self.labels[idx], 11)
-		#label_id = self.labels[idx]#self.class_map[self.labels[idx]]
-		#print(label, type(label))
-		#label = label.to(torch.float32)
-		#label_id = torch.tensor([label_id])
-		#img = cv2.imread(self.image_arr[index])
-		#img = self.x[index]
-		#label = self.label_arr[index]
-		#imgs = self.image_arr[index]
-		#print('indexed label',label)
+    def __len__(self):
+        # length of dataset
+        return len(self.img_path)
+    
+    # tenor functions
+    def tensoring(self, img):
+        tense = torch.tensor(img, dtype=torch.float32)
+        tense = F.normalize(tense)
+        tense = tense.permute(2, 0, 1)
+        return tense
 
-		#print('t t t t',self.image_arr[index], 't t t t', self.image_arr[index].shape, 't t t t')
+    def to_tensor(self, img):
+        im_chan = img.shape[2]
+        imgY, imgX = img.shape[0], img.shape[1]
+        tensor = self.tensoring(img)
+        tensor = tensor.reshape(im_chan, imgY, imgX)
+        tensor = tensor.to(self.device)
+        return tensor
 
-		#if self.transform:
-		#	prepro = ImageProcessor(self.device)# img_path, col:str, size, pad:int, unwrap=False):
-		#	img = [prepro.colour_size_tense(i, self.col_dict['colour'], self.col_dict['size'], self.col_dict['padding']) for i in imgs]
-		#	labels = [label_oh_tf(i, 11) for i in label]
-		#else:
-		#	img = self.image_arr[index]
-		#x_train, x_test, y_train, y_test  = train_test_split(img, labels, test_size=0.3)
-		#x_train, x_val, y_train, y_val  = train_test_split(x_train, y_train, test_size=0.1)
-		#print('img2',type(img),len(img), img)
-		#print('label2',type(label), len(label))
-		return tensor, label
+    def __getitem__(self, idx, transform=False):
+        # what object to return
+        size= self.col_dict['size']
+        pad = self.col_dict['padding']
+        
+        img = cv2.imread(self.img_path[idx])
+        self.transform = transform
 
-	
+        im_chan = img.shape[2]
+        if size:
+            img = cv2.resize(img, (size[0], size[1]))
+            h = size[1]
+            w = size[0]
+        else:
+            h = img[0]
+            w = img[1]
+
+        img = img/255 #norm
+
+        tense = self.to_tensor(img)
+
+        label = label_oh_tf(self.labels[idx], 11)
+        return tense, label
+
+    
+def save2csv(nested_dict, file_name, save_location:str):
+    columns = list(nested_dict.keys())
+    path = os.path.join(save_location, file_name +".csv")
+    try:
+        with open(path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=columns)
+            # using dictwriter
+            # using writeheader function
+            if f.tell() == 0:
+                writer.writeheader()
+            writer.writerow(nested_dict)
+            f.close()
+    except IOError as e:
+        print("I/O error({0}): {1}".format(e.errno, e.strerror))
+    except ValueError:
+              print("could not convert to string")
+    except:
+              print("unexpected error: ", sys.exc_info()[0])
+        
+
+def save2json(nested_dict, file_name, save_location:str):
+    json_obj = json.dumps(nested_dict, indent=4)
+    print(json_obj)
+    path = os.path.join(save_location, file_name+".json")
+    #print(path)
+    with open(path, 'w') as f:
+        f.write(json_obj)
+        
+
+def read_in_json(file_path, file_name):
+    path = os.path.join(file_path, 'file_name')
+    try:
+        with open(path, 'r') as f:
+            #obj = f.read()
+            dj = json.load(f, object_pairs_hook= collections.OrderedDict) #obj, 
+            print(dj)
+    except Exception as e:
+        print("Error decoding Json")
+        print(e)
+    
 #prepro = ImageProcessor(device)
 #self.x_train = prepro.colour_size_tense(x_train, col_dict['colour'], col_dict['size'], col_dict['pad'])
 #self.x_val = prepro.colour_size_tense(x_val, col_dict['colour'], col_dict['size'], col_dict['pad'])
