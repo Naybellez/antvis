@@ -38,9 +38,9 @@ class BoxData():
 		box_list = []
 		#[box_list.append(self.client.file(item.id).get()) for item in self.items] 
 		[box_list.append(item.name) for item in self.items]
-		print(box_list)
+		#print(box_list)
 		for f in os.listdir(og_fol):
-			print('f',f)
+			#print('f',f)
 			file_path = os.path.join(og_fol, f)
 
 			#print(item_content)
@@ -51,9 +51,11 @@ class BoxData():
 					print(f"uploading...:")
 					to_folder.upload(file_path, file_name=f)
 					
-			except BoxAPIException:
-				print(f" {f} already exists")
-				continue
+				else:
+					print(f" {f} already exists")
+					continue
+			except:
+				print('File already exists!')
 
 			#except:
 			#	print(f"uploading...:")

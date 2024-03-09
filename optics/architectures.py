@@ -7,6 +7,28 @@
 import torch
 import torch.nn as nn
 
+
+class Squeeze(nn.Module):
+    def __init__(self):
+        super(Squeeze, self).__init__()
+    
+    def forward(self, x):
+        # Do your print / debug stuff here
+        x = x.squeeze(0)
+        x = x.squeeze(1)
+        x = x.squeeze(1)
+        return x
+    
+class Flattern(nn.Module):
+    def __init__(self):
+        super(Flattern, self).__init__()
+    
+    def forward(self, x):
+        x = x.flatten()
+        return x
+
+    
+
 # Define model - copy of what worked on MNIST
 def vgg16net(in_chan, f_lin_lay, l_lin_lay, ks, dropout):
     class vgg16TorchNet(nn.Module):
@@ -233,15 +255,19 @@ def smallnet3(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
         def __init__(self):
             super(SmallNet3, self).__init__()
             self.flatten = nn.Flatten()
+            #PrintLayer()
 
             self.conv_layers = nn.Sequential(  # 1, 2, 144, 452
                   nn.Conv2d(in_channels=in_chan, out_channels=32, kernel_size=ks, padding=2),
                   nn.ReLU(), #inplace=True
                   nn.Dropout(p=dropout),
+                  #PrintLayer(),
                   nn.Conv2d(in_channels =32, out_channels=64, kernel_size=ks),
                   nn.ReLU(),
                   nn.MaxPool2d(2,2),
+                  #PrintLayer(),
                   nn.Dropout(p=dropout), # (1x258048 and 16384x100)
+                  #PrintLayer(),
               )
 
             self.linear_1 = nn.Sequential(    #1x16384 and 4096x100)
@@ -272,12 +298,12 @@ class PrintLayer(nn.Module):
 		print(x)
 		return x
 
-class Squeeze(nn.Module):
-	# 
-	def __init__(self):
-		super(Squeeze, self).__init__()
-	def forward(self, x):
-		x = x.squeeze(0)
+#class Squeeze(nn.Module):#
+
+#	def __init__(self):
+#		super(Squeeze, self).__init__()
+#	def forward(self, x):
+#		x = x.squeeze(0)
 		#x = x.squeeze(1)
 		#x = x.squeeze(1)
-		return x
+#		return x

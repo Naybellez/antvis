@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
-from torchvision import transforms
 import random
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
@@ -36,7 +35,7 @@ def get_data(file_path, seed):
 	x, y = import_imagedata(file_path)
 	random_seed = random.seed(seed)
 	x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=random_seed)
-	x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.3, random_state=random_seed, shuffle=True)
+	x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
 
 	#train_loader = DataLoader(list(zip(x_train, y_train)), shuffle =True, batch_size=16) # machinelearningmastery.com
 	#val_loader = DataLoader(list(zip(x_val, y_val)), shuffle =True, batch_size=16)
@@ -249,7 +248,7 @@ class  ImageProcessor():
 		elif type(img) == str:
 			cv2.imread(img)
 		plt.imshow(img)
-		#plt.axis(False)
+		plt.axis(False)
 		plt.show()
 		return img
 
@@ -339,218 +338,61 @@ def get_data(file_path):
 	return x_train, y_train, x_val, y_val, x_test, y_test
 	#return train_loader, val_loader, test_loader
 """
-class CustomDataset(Dataset): # kemals dl
-	def __init__(self, x, y, col_dict, device):
-		self.x = x
-		self.y = y
-		self.col_dict = col_dict
-		self.device = device
-
-	def __len__(self):
-		return len(self.y)
-	
-	def __getitem__(self, idx):
-		size = self.col_dict['size']
-		img = cv2.imread(self.x[idx])
-		img = cv2.resize(img, (size[0], size[1]))
-		img =  img / 255.
-		img = img.astype(np.float32)
-		#img = np.expand_dims(img, 0)
-
-		#print(img)
-		#class_id = self.class_map[class_name]
-		img_tensor = torch.from_numpy(img)
-		img_tensor = img_tensor.permute(2, 0, 1)
-		img_label = torch.tensor([int(self.y[idx])])
-		img_label = img_label.to(torch.float32)
-		return img_tensor, img_label
-		#return img_tensor, class_id
-
-
-class CustomDatasetKN(Dataset): # building through Kemal's DL - find where i am going wrong
-	def __init__(self, x, y, col_dict, device):
-		self.col_dict = col_dict
-		self.device= device
-		self.x = x
-		self.y = y
-		self.i= 0
-		#self.data.append([x, y])
-
-	def __len__(self):
-		return len(self.y)
-	
-	def tensoring(self, img):
-		tense = torch.tensor(img, dtype=torch.float32)
-		tense = F.normalize(tense)
-		tense = tense.permute(2, 0, 1)
-		return tense
-
-	def to_tensor(self, img):
-		im_chan = img.shape[2]
-		imgY, imgX = img.shape[0], img.shape[1]
-		tensor = self.tensoring(img)
-		tensor = tensor.reshape(im_chan, imgY, imgX)
-		tensor = tensor.to(self.device)
-		return tensor
-	
-	def __getitem__(self, idx):
-		img_path = self.x[idx]
-		
-		size = self.col_dict['size']
-		self.i+=1
-		print(self.i)
-
-		img = cv2.imread(img_path)
-		img = cv2.resize(img, (size[0], size[1]))
-
-		tense = self.to_tensor(img)
-
-		label = label_oh_tf(self.y[idx], 11)
-
-		return tense, label
-
-
-
 
 class IDSWDataSetLoader(Dataset):
-	def __init__(self, x, y, col_dict, device): # transform =True
+	def __init__(self, col_dict, device, transform =True):
 		super(Dataset, self).__init__()
-		
+		# load ds ?
+		self.file_path = r'/its/home/nn268/antvis/antvis/optics/AugmentedDS_IDSW/'
+		self.transform = transform
 		self.device = device
 		self.col_dict = col_dict
 		
-		self.img_path = x
-		self.labels = y
+		images = []
+		labels = []
 
-		self.class_map = {"1":0,"2": 1,
-							"3":2, "4":3,
-							"5":4, "6": 5,
-							"7":6, "8":7,
-							"9":8, "10": 9,
-							"11":10}
+		for file in os.listdir(self.file_path):
+			if file[0:4] == 'IDSW':
+				j = self.file_path+file
+				i=int(file[5:7]) -1
+				i = str(i)
+				labels.append(i)
+				images.append(j)
+		self.label_arr =np.array(labels)
+		self.image_arr = np.array(images)
 		
+
+		
+
+		#self.x_train, self.y_train, self.x_val, self.y_val, self.x_test, self.y_test = self.get_data(file_path)
+
+		#self.n_samples = self.x.shape[0] ?
 
 	def __len__(self):
 		# length of dataset
-		return len(self.img_path)
-	
-	def tensoring(self, img):
-		tense = torch.tensor(img, dtype=torch.float32)
-		tense = F.normalize(tense)
-		tense = tense.permute(2, 0, 1)
-		return tense
+		return len(self.image_arr)
 
-	def to_tensor(self, img):
-		im_chan = img.shape[2]
-		imgY, imgX = img.shape[0], img.shape[1]
-		tensor = self.tensoring(img)
-		tensor = tensor.reshape(im_chan, imgY, imgX)
-		tensor = tensor.to(self.device)
-		return tensor
-
-	def __getitem__(self, idx,transform=False):
-		size= self.col_dict['size']
-		pad = self.col_dict['padding']
-		img = cv2.imread(self.img_path[idx])
-		#print("img in ",img.shape)
-		
-		
-		self.transform = transform
-		im_chan = img.shape[2]
-		if size:
-			img = cv2.resize(img, (size[0], size[1]))
-			h = size[1]
-			w = size[0]
-		else:
-			h = img[0]
-			w= img[1]
-		
-		img = img/255 #norm/
-		#print("img sized", img.shape)
-		
-		tense = self.to_tensor(img)
-		#print("post tense",tense.shape)
-		
-		label = label_oh_tf(self.labels[idx], 11)
-		
-		return tense, label
-
-
-
-
-"""
-# load ds ?
-		#self.transform = transform
-#print(type(file_paths), len(file_paths), file_paths)
-#print(type(self.img_path))
-#print(type(self.labels))
-		#images = []
-		#labels = []
-for file in os.listdir(self.file_path):
-			if file[0:4] == 'IDSW':
-				label = self.file_path+file
-				img_path=int(file[5:7]) -1
-				img_path = str(img_path)
-				self.data.append([img_path, label])
-				#labels.append(img_path)
-				#images.append(label)
-		#self.label_arr =np.array(labels)
-		#self.image_arr = np.array(images)
-#self.img_dim =(3, 452, 144) # the dim you want the data
-		#self.x_train, self.y_train, self.x_val, self.y_val, self.x_test, self.y_test = self.get_data(file_path)
-		#self.n_samples = self.x.shape[0] ?
-		#print(self.data)
-#plt.imshow(img)
-		#plt.show()
-#print(type(img))
-#print("im_chan",im_chan)
-#print('h',h)
-#print('w', w)
-#print("img post /255")
-#plt.imshow(img)
-		#plt.show()
-#print(tense)
-		#tense = torch.tensor(img, dtype=torch.float32)
-		#tense = F.normalize(tense)
-		#tense = tense.permute(2, 0, 1)
-		#print(tense)
-		#tensor = tensor.reshape(1, im_chan, imgY, imgX)
-		#tensor = tense.reshape(im_chan, h, w)
-		#if transform: #
-		#	transforms.Compose([
-		#		transforms.Resize([h, w]),
-		#		transforms.functional.pad([pad])
-		#		])
-			
-		#tensor = tensor.to(self.device)
-#print(label)
-		#label_id = self.labels[idx]#self.class_map[self.labels[idx]]
-		#print(label, type(label))
-		#label = label.to(torch.float32)
-		#label_id = torch.tensor([label_id])
+	def __getitem__(self, index):
 		#img = cv2.imread(self.image_arr[index])
 		#img = self.x[index]
-		#label = self.label_arr[index]
-		#imgs = self.image_arr[index]
+
+		label = self.label_arr[index]
+		imgs = self.image_arr[index]
 		#print('indexed label',label)
 
 		#print('t t t t',self.image_arr[index], 't t t t', self.image_arr[index].shape, 't t t t')
 
-		#if self.transform:
-		#	prepro = ImageProcessor(self.device)# img_path, col:str, size, pad:int, unwrap=False):
-		#	img = [prepro.colour_size_tense(i, self.col_dict['colour'], self.col_dict['size'], self.col_dict['padding']) for i in imgs]
-		#	labels = [label_oh_tf(i, 11) for i in label]
-		#else:
-		#	img = self.image_arr[index]
-		#x_train, x_test, y_train, y_test  = train_test_split(img, labels, test_size=0.3)
-		#x_train, x_val, y_train, y_val  = train_test_split(x_train, y_train, test_size=0.1)
+		if self.transform:
+			prepro = ImageProcessor(self.device)# img_path, col:str, size, pad:int, unwrap=False):
+			img = [prepro.colour_size_tense(i, self.col_dict['colour'], self.col_dict['size'], self.col_dict['padding']) for i in imgs]
+			labels = [label_oh_tf(i, 11) for i in label]
+		else:
+			img = self.image_arr[index]
 		#print('img2',type(img),len(img), img)
 		#print('label2',type(label), len(label))
+		return img, labels
 
-"""
-
-
-
+	
 #prepro = ImageProcessor(device)
 #self.x_train = prepro.colour_size_tense(x_train, col_dict['colour'], col_dict['size'], col_dict['pad'])
 #self.x_val = prepro.colour_size_tense(x_val, col_dict['colour'], col_dict['size'], col_dict['pad'])
