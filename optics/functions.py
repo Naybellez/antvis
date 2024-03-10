@@ -205,6 +205,7 @@ class  ImageProcessor():
         tensor = self.tensoring(img)
         #tensor = tensor.reshape(1, im_chan, imgY, imgX)
         tensor = tensor.reshape(im_chan, imgY, imgX)
+        print('to tensor SELF.DEVICE: \n ',self.device)
         tensor = tensor.to(self.device)
         return tensor
     def split_channels(self, im):
@@ -393,6 +394,7 @@ class IDSWDataSetLoader(Dataset):
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
         tensor = tensor.reshape(im_chan, imgY, imgX)
+        print(' \n to tensor SELF.DEVICE: \n ', self.device)
         tensor = tensor.to(self.device)
         return tensor
 

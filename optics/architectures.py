@@ -143,7 +143,7 @@ def build_net(lin_layer_size, dropout, first_lin_lay, ks, in_chan, pad_size):
     model = EditNet()
     return model
 
-def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks):
+def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
     class SmallNet1(nn.Module):
         # 4 conv layers, 3 linear
         def __init__(self):
@@ -153,7 +153,7 @@ def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks):
             self.conv_layers = nn.Sequential(  # 1, 2, 144, 452
                   nn.Conv2d(in_channels=in_chan, out_channels=32, kernel_size=ks, padding=2),
                   nn.ReLU(), #inplace=True
-                  nn.Dropout(p=0.5),
+                  nn.Dropout(p=dropout),
                   nn.Conv2d(in_channels=32, out_channels=64, kernel_size=ks, padding=2),
                   nn.ReLU(), #inplace=True
                   nn.Conv2d(in_channels =64, out_channels=64, kernel_size=ks),
@@ -162,7 +162,7 @@ def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks):
                   nn.Conv2d(in_channels=64, out_channels=128, kernel_size=ks, padding=2),
                   nn.ReLU(), #inplace=True
                   nn.MaxPool2d(2,2),
-                  nn.Dropout(p=0.5), # (1x258048 and 16384x100)
+                  nn.Dropout(p=dropout), # (1x258048 and 16384x100)
               )
 
             self.linear_1 = nn.Sequential(    #1x16384 and 4096x100)
@@ -170,7 +170,7 @@ def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks):
                 nn.ReLU(),
                 nn.Linear(100,100),
                 nn.ReLU(),
-                nn.Dropout(p=0.5),
+                nn.Dropout(p=dropout),
                 nn.Linear(100,l_lin_lay),
                 nn.Softmax(),
             )
@@ -189,7 +189,7 @@ def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks):
 
 
 
-def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks):
+def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
     class SmallNet2(nn.Module):
         # 3 conv layers, 2 linear
         def __init__(self):
@@ -199,19 +199,19 @@ def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks):
             self.conv_layers = nn.Sequential(  # 1, 2, 144, 452
                   nn.Conv2d(in_channels=in_chan, out_channels=32, kernel_size=ks, padding=2),
                   nn.ReLU(), #inplace=True
-                  nn.Dropout(p=0.5),
+                  nn.Dropout(p=dropout),
                   nn.Conv2d(in_channels=32, out_channels=64, kernel_size=ks, padding=2),
                   nn.ReLU(), #inplace=True
                   nn.Conv2d(in_channels =64, out_channels=64, kernel_size=ks),
                   nn.ReLU(),
                   nn.MaxPool2d(2,2),
-                  nn.Dropout(p=0.5), # (1x258048 and 16384x100)
+                  nn.Dropout(p=dropout), # (1x258048 and 16384x100)
               )
 
             self.linear_1 = nn.Sequential(    #1x16384 and 4096x100)
                 nn.Linear(f_lin_lay, 100),
                 nn.ReLU(),
-                nn.Dropout(p=0.5),
+                nn.Dropout(p=dropout),
                 nn.Linear(100,l_lin_lay),
                 nn.Softmax(),
             )
