@@ -40,7 +40,7 @@ def loop(model, X, Y, loss_fn, device, size, pad, num_classes, model_name, colou
     num_correct = 0
     current_loss = 0
 
-    print(model_name)
+    #print(model_name)
     
 
     for idx, img in enumerate(X):
@@ -53,7 +53,7 @@ def loop(model, X, Y, loss_fn, device, size, pad, num_classes, model_name, colou
             tense = prepro.colour_size_tense(img, colour, size, pad, vg=True)
         else:
             tense = prepro.colour_size_tense(img, colour, size, pad)
-        print(tense.shape)
+        #print(tense.shape)
 
         prediction = model.forward(tense)
         label = label_oh_tf(Y[idx], num_classes).to(device)

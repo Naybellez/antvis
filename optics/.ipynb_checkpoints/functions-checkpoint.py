@@ -205,7 +205,7 @@ class  ImageProcessor():
         tensor = self.tensoring(img)
         #tensor = tensor.reshape(1, im_chan, imgY, imgX)
         tensor = tensor.reshape(im_chan, imgY, imgX)
-        print('to tensor SELF.DEVICE: \n ',self.device)
+        #print('to tensor SELF.DEVICE: \n ',self.device)
         tensor = tensor.to(self.device)
         return tensor
     def split_channels(self, im):
@@ -239,7 +239,7 @@ class  ImageProcessor():
         if unwrap: 
             if size[0] != size[1]: 
                 im = Unwrap(im)
-        print(im.shape)
+        #print(im.shape)
         if im.shape[2]==1: 
             im= self.to_tensor(im)
             return(im)
@@ -253,9 +253,9 @@ class  ImageProcessor():
             im = self.padding(img=im, pad_size=pad)
         if vg:
             im = self.blank_padding(im, (224,224)) 
-        print(im.shape)
+        #print(im.shape)
         im = self.to_tensor(im) 
-        print(im.shape)
+        #print(im.shape)
         return im
 
     def view(self, img, scale:int):
