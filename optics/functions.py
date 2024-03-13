@@ -135,8 +135,31 @@ class  ImageProcessor():
         lum = (0.114*b)+(0.587*g)+(0.299*r)
         mean_lum = np.mean(lum)
         return mean_lum
+
+
+    def new_luminance(self, dataset):
+        data_len = len(dataset)
+        r= []
+        b =[]
+        g = []
+        for idx, img_path in enumerate(dataset):
+            d = cv2.imread(img_path)
+            if d is None:
+                #print('boo')
+                print('Bad path:  ',img_path)
+                continue
+            r_,g_,b_ = self.split_channels(d)
+            r.append(r_)
+            g.append(g_)
+            b.append(b_)
+        av_r = sum(r)/len(r)
+        av_b = sum(b)/ len(b)
+        av_g = sum(g) / len(g)
+        lum = (0.114*av_b)+(0.587*av_g)+(0.299*av_r)
+        mean_lum = np.mean(lum)
+        return mean_lum
     
-    def blank_padding(self, img, final_size:list): 
+    def blank_padding(self, img, av_lum, final_size:list): 
 
         w = final_size[1]
         h = final_size[0]
@@ -158,8 +181,8 @@ class  ImageProcessor():
         half_delta_h = int(np.floor(delta_h/2))
         half_delta_w = int(np.floor(delta_w/2))
 
-        avg_lum = int(self.luminance(img)) 
-        new_x = np.full((h,w,3), avg_lum) 
+        #avg_lum = int(self.luminance(img)) 
+        new_x = np.full((h,w,3), av_lum) 
         if img.shape[1]%2 ==0: 
             if img.shape[0]%2 == 0: 
                 if half_delta_w == 0:
@@ -176,7 +199,7 @@ class  ImageProcessor():
                 new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
             else:
                 new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
-        print(new_x.shape)
+        #print(new_x.shape)
         return new_x
 
 
@@ -228,7 +251,7 @@ class  ImageProcessor():
         return im
 
     #useful functions
-    def colour_size_tense(self, img_path, col:str, size, pad:int,vg =False, unwrap=False):
+    def colour_size_tense(self, img_path, col:str, size, av_lum,  pad:int,vg =False, unwrap=False):
 
         if isinstance(img_path, str):
             im = cv2.imread(img_path)
@@ -252,7 +275,7 @@ class  ImageProcessor():
         if pad > 0: # if padding has been specified...
             im = self.padding(img=im, pad_size=pad)
         if vg:
-            im = self.blank_padding(im, (224,224)) 
+            im = self.blank_padding(im, ave_lum, (224,224)) 
         #print(im.shape)
         im = self.to_tensor(im) 
         #print(im.shape)
