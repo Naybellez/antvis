@@ -41,17 +41,20 @@ def loop(model, X, Y, loss_fn, device, size, pad, num_classes, model_name, av_lu
     current_loss = 0
 
     #print(model_name)
-    
 
     for idx, img in enumerate(X):
         #tense = tensoring(img).to(device)
         prepro = ImageProcessor(device)
+        #print('loop size: ',size, type(size))
         if model_name == 'vgg16':
             #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
+            #print('vgg registered')
             tense = prepro.colour_size_tense(img, colour, size,av_lum, pad, vg=True) #[29, 9], 15, 5, [8,3]
         elif (model_name == '7c3l' and size == [29, 9]) or (model_name == '7c3l' and size == [15, 5]) or (model_name == '7c3l' and size ==[8, 3]):
+            #print('7c and small size registered')
             tense = prepro.colour_size_tense(img, colour, size, pad, vg=True)
         else:
+            #print('coloursizetense as norm registered')
             tense = prepro.colour_size_tense(img, colour, size,av_lum, pad)
         #print(tense.shape)
 
@@ -61,7 +64,7 @@ def loop(model, X, Y, loss_fn, device, size, pad, num_classes, model_name, av_lu
         #	lr_ls.append(optimizer.param_groups[0]['lr'])
         loss = loss_fn(prediction, label)
         predict_list.append(prediction.argmax())
-
+        #print('loop loss: ',loss.item())
         if prediction.argmax() == label.argmax():
             num_correct +=1
             #if train:
@@ -110,7 +113,7 @@ def test_loop(model, X, Y, loss_fn, device, title, num_classes):
 		log_test_score(acc, accuracy, X)
 
 
-"""def loop(model, X, Y, loss_fn, device, col_dict, num_classes, model_name, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
+def loop_og(model, X, Y, loss_fn, device, col_dict, num_classes, model_name, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
     model = model
     total_samples = len(X)
     if train:
@@ -126,19 +129,14 @@ def test_loop(model, X, Y, loss_fn, device, title, num_classes):
     colour = col_dict['colour']
     size = col_dict['size']
     pad = col_dict['pad']
+    av_lum = col_dict['av_lum']
 
     for idx, img in enumerate(X):
         #tense = tensoring(img).to(device)
         prepro = ImageProcessor(device)
-        if model_name == 'vgg':
-            #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
-            tense = prepro.colour_size_tense(img, colour, size, pad, vg=True) #[29, 9], 15, 5, [8,3]
-        elif model_name == '7c3l' and size == [29, 9] or size == [15, 5] or size ==[8, 3]:
-            tense = prepro.colour_size_tense(img, colour, size, pad, vg=True)
-        else:
-            tense = prepro.colour_size_tense(img, colour, size, pad)
+        tense = prepro.colour_size_tense(img, colour, size, av_lum, pad)
 
-
+        #print(tense.shape)
         prediction = model.forward(tense)
         label = label_oh_tf(Y[idx], num_classes).to(device)
         #if train:
@@ -151,13 +149,14 @@ def test_loop(model, X, Y, loss_fn, device, title, num_classes):
             #if train:
             #	print(f'\n ########################### HIT ###########################  -- {idx} / {total_samples} \n')
         total_count+=1
-        current_loss += loss.item()
+        
         if train:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             if scheduler:
                 scheduler.step()
+        current_loss += loss.item()
     #print(num_correct/len(X))
     if train:
         return current_loss, predict_list, num_correct, model, optimizer #, lr_ls
@@ -166,7 +165,7 @@ def test_loop(model, X, Y, loss_fn, device, title, num_classes):
 
 
 
-def test_loop(model, X, Y, loss_fn, device, col_dict,title, num_classes):
+def test_loop_og(model, X, Y, loss_fn, device, col_dict,title, num_classes):
 	model = model.eval()
 	predict_list = []
 	total_count =0
@@ -192,4 +191,3 @@ def test_loop(model, X, Y, loss_fn, device, col_dict,title, num_classes):
 
 		X = list(X)
 		log_test_score(acc, accuracy, X)
-"""

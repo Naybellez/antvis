@@ -255,9 +255,10 @@ class  ImageProcessor():
 
         if isinstance(img_path, str):
             im = cv2.imread(img_path)
+            #plt.imshow(im)
+            #plt.show()
         else:
             im= img_path
-
 
         if unwrap: 
             if size[0] != size[1]: 
@@ -267,7 +268,6 @@ class  ImageProcessor():
             im= self.to_tensor(im)
             return(im)
 
-
         im = self.im_channels(im,col)
 
         im = cv2.resize(im, (size[0], size[1])) # resize the image
@@ -275,8 +275,11 @@ class  ImageProcessor():
         if pad > 0: # if padding has been specified...
             im = self.padding(img=im, pad_size=pad)
         if vg:
+            print('vg in place')
             im = self.blank_padding(im, ave_lum, (224,224)) 
         #print(im.shape)
+        #plt.imshow(im)
+        #plt.show()
         im = self.to_tensor(im) 
         #print(im.shape)
         return im

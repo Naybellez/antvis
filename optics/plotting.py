@@ -8,7 +8,9 @@ import seaborn as sns
 
 def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
     sns.set()
+    #print(predictions)
     predict_list = [int(t.argmax()) for t in predictions] ##
+    #print(predictions)
     predict_list = [int(t.numpy()) for t in predictions]
     actual = [int(l) for l in actual]
 
@@ -64,7 +66,7 @@ def learning_curve(t_loss, v_loss, save_location,run_name:str):
         print("Save Location Not Specified!")
     plt.show()
 
-def accuracy_curve(v_accuracy_list, t_accuracy_list, save_location,run_name:str):
+def accuracy_curve(t_accuracy_list, v_accuracy_list,save_location,run_name:str):
     lab = "Accuracy Curve"+run_name
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
