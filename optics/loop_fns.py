@@ -75,8 +75,8 @@ def loop(model, X, Y, loss_fn, device, size, pad, num_classes, model_name, av_lu
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if scheduler:
-                scheduler.step()
+    if scheduler:
+        scheduler.step()
     #print(num_correct/len(X))
     if train:
         return current_loss, predict_list, num_correct, model, optimizer #, lr_ls
