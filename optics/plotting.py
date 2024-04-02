@@ -6,7 +6,15 @@ from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, Confusio
 import pickle
 import seaborn as sns
 
+
+def check_save_path(save_location):
+    if save_location is not None:
+        if save_location[-1]!= '/':
+            save_location = save_location+'/'
+    return save_location
+
 def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
+    save_location = check_save_path(save_location)
     sns.set()
     #print(predictions)
     predict_list = [int(t.argmax()) for t in predictions] ##
@@ -49,6 +57,7 @@ def metrics(label, prediction): #TypeError: Singleton array tensor(3) cannot be 
     return acc
 
 def learning_curve(t_loss, v_loss, save_location,run_name:str):
+    save_location = check_save_path(save_location)
     lab = "Learning Curve "+run_name
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
@@ -67,6 +76,7 @@ def learning_curve(t_loss, v_loss, save_location,run_name:str):
     plt.show()
 
 def accuracy_curve(t_accuracy_list, v_accuracy_list,save_location,run_name:str):
+    save_location = check_save_path(save_location)
     lab = "Accuracy Curve"+run_name
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}

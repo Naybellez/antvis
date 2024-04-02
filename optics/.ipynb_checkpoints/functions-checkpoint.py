@@ -276,7 +276,7 @@ class  ImageProcessor():
             im = self.padding(img=im, pad_size=pad)
         if vg:
             print('vg in place')
-            im = self.blank_padding(im, ave_lum, (224,224)) 
+            im = self.blank_padding(im, av_lum, (224,224)) 
         #print(im.shape)
         #plt.imshow(im)
         #plt.show()
