@@ -448,6 +448,73 @@ class IDSWDataSetLoader(Dataset):
         label = label_oh_tf(self.labels[idx], 11)
         return tense, label
 
+class IDSWDataSetLoader2(Dataset):
+    def __init__(self, x, y, res,pad,model_name, device): # transform =True
+        super(Dataset, self).__init__()
+
+        self.device = device
+        #self.col_dict = col_dict
+
+        self.img_path = x
+        self.labels = y
+        self.res = res
+        self.pad = pad
+        self.model_name = model_name
+
+        self.class_map = {"1":0,"2": 1,
+                            "3":2, "4":3,
+                            "5":4, "6": 5,
+                            "7":6, "8":7,
+                            "9":8, "10": 9,
+                            "11":10}
+
+
+    def __len__(self):
+        # length of dataset
+        return len(self.img_path)
+    
+    # tenor functions
+    def tensoring(self, img):
+        tense = torch.tensor(img, dtype=torch.float32)
+        tense = F.normalize(tense)
+        tense = tense.permute(2, 0, 1)
+        return tense
+
+    def to_tensor(self, img):
+        im_chan = img.shape[2]
+        imgY, imgX = img.shape[0], img.shape[1]
+        tensor = self.tensoring(img)
+        tensor = tensor.reshape(im_chan, imgY, imgX)
+        print(' \n to tensor SELF.DEVICE: \n ', self.device)
+        tensor = tensor.to(self.device)
+        return tensor
+
+    def __getitem__(self, idx, transform=False):
+        # what object to return
+        size= self.res
+        pad = self.pad
+        
+        img = cv2.imread(self.img_path[idx])
+        self.transform = transform
+
+        im_chan = img.shape[2]
+        if size:
+            img = cv2.resize(img, (size[0], size[1]))
+            h = size[1]
+            w = size[0]
+        else:
+            h = img[0]
+            w = img[1]
+
+        img = img/255 #norm
+
+        tense = self.to_tensor(img)
+
+        label = label_oh_tf(self.labels[idx], 11)
+        return tense, label
+
+
+
     
 def save2csv(nested_dict, file_name, save_location:str):
     columns = list(nested_dict.keys())
