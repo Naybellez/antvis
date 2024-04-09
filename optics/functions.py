@@ -420,7 +420,7 @@ class IDSWDataSetLoader(Dataset):
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
         tensor = tensor.reshape(im_chan, imgY, imgX)
-        print(' \n to tensor SELF.DEVICE: \n ', self.device)
+        #print(' \n to tensor SELF.DEVICE: \n ', self.device)
         tensor = tensor.to(self.device)
         return tensor
 
@@ -449,7 +449,7 @@ class IDSWDataSetLoader(Dataset):
         return tense, label
 
 class IDSWDataSetLoader2(Dataset):
-    def __init__(self, x, y, res,pad,model_name, device): # transform =True
+    def __init__(self, x, y, res,pad,av_lum, model_name, device): # transform =True
         super(Dataset, self).__init__()
 
         self.device = device
@@ -460,6 +460,7 @@ class IDSWDataSetLoader2(Dataset):
         self.res = res
         self.pad = pad
         self.model_name = model_name
+        self.av_lum =av_lum
 
         self.class_map = {"1":0,"2": 1,
                             "3":2, "4":3,
@@ -485,32 +486,61 @@ class IDSWDataSetLoader2(Dataset):
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
         tensor = tensor.reshape(im_chan, imgY, imgX)
-        print(' \n to tensor SELF.DEVICE: \n ', self.device)
+        #print(' \n to tensor SELF.DEVICE: \n ', self.device)
         tensor = tensor.to(self.device)
         return tensor
+        
+    def padding(self, img, pad_size):
+        left_x = img[:,:pad_size,:] # h, w, c
+        right_x = img[:,-pad_size:,:]
+        y = img.shape[0]
+        x = img.shape[1]+(pad_size*2)
+        new_x = np.full((y, x, 3),255) # h w c
+        new_x[:,:pad_size,:] = right_x
+        new_x[:,pad_size:-pad_size,:] = img
+        new_x[:,-pad_size:,:] = left_x
+        return new_x
 
+    def label_oh_tf(self, lab):	#device,
+    	one_hot = np.zeros(11)
+    	lab = int(lab)
+    	one_hot[lab] = 1
+    	label = torch.tensor(one_hot)
+    	label = label.to(torch.float32)
+    	#label = label.to(device) #
+    	return label
+        
+    def colour_size_tense(self,idx, vg =False):
+        im = cv2.imread(self.img_path[idx])
+
+        
+        im = cv2.resize(im, (self.res[0], self.res[1]))
+        if self.pad > 0: 
+            im = self.padding(img=im, pad_size=self.pad)
+        if vg:
+            im = self.blank_padding(im, self.av_lum, (224,224)) 
+
+        im = im/255 #norm
+        im = self.to_tensor(im) 
+        return im
+        
     def __getitem__(self, idx, transform=False):
         # what object to return
         size= self.res
         pad = self.pad
-        
-        img = cv2.imread(self.img_path[idx])
-        self.transform = transform
 
-        im_chan = img.shape[2]
-        if size:
-            img = cv2.resize(img, (size[0], size[1]))
-            h = size[1]
-            w = size[0]
+        if self.model_name == 'vgg16':
+            #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
+            #print('vgg registered')
+            tense = self.colour_size_tense(idx, vg=True) #[29, 9], 15, 5, [8,3]
+        elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
+            #print('7c and small size registered')
+            tense = self.colour_size_tense(idx, vg=True)
         else:
-            h = img[0]
-            w = img[1]
+            #print('coloursizetense as norm registered')
+            tense = self.colour_size_tense(idx)
 
-        img = img/255 #norm
-
-        tense = self.to_tensor(img)
-
-        label = label_oh_tf(self.labels[idx], 11)
+        label = self.label_oh_tf(self.labels[idx])
         return tense, label
 
 

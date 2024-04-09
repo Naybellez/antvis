@@ -195,7 +195,7 @@ def test_loop_og(model, X, Y, loss_fn, device, col_dict,title, num_classes):
 
 
 
-def loop_batch(model, X, Y, loss_fn, device, size, pad, num_classes, model_name, av_lum,colour= 'colour', optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
+def loop_batch(model, data, loss_fn, device, size, pad, num_classes, model_name, av_lum,colour= 'colour', optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
     model = model
     total_samples = len(X)
     if train:
@@ -212,20 +212,7 @@ def loop_batch(model, X, Y, loss_fn, device, size, pad, num_classes, model_name,
     #print(model_name)
 
     for idx, img in enumerate(X):
-        #tense = tensoring(img).to(device)
-        prepro = ImageProcessor(device)
-        #print('loop size: ',size, type(size))
-        if model_name == 'vgg16':
-            #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
-            #print('vgg registered')
-            tense = prepro.colour_size_tense(img, colour, size,av_lum, pad, vg=True) #[29, 9], 15, 5, [8,3]
-        elif (model_name == '7c3l' and size == [29, 9]) or (model_name == '7c3l' and size == [15, 5]) or (model_name == '7c3l' and size ==[8, 3]):
-            #print('7c and small size registered')
-            tense = prepro.colour_size_tense(img, colour, size, pad, vg=True)
-        else:
-            #print('coloursizetense as norm registered')
-            tense = prepro.colour_size_tense(img, colour, size,av_lum, pad)
-        #print(tense.shape)
+        
 
         prediction = model.forward(tense)
         label = label_oh_tf(Y[idx], num_classes).to(device)
