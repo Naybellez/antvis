@@ -448,6 +448,8 @@ class IDSWDataSetLoader(Dataset):
         label = label_oh_tf(self.labels[idx], 11)
         return tense, label
 
+
+
 class IDSWDataSetLoader2(Dataset):
     def __init__(self, x, y, res,pad,av_lum, model_name, device): # transform =True
         super(Dataset, self).__init__()
@@ -500,20 +502,31 @@ class IDSWDataSetLoader2(Dataset):
         new_x[:,pad_size:-pad_size,:] = img
         new_x[:,-pad_size:,:] = left_x
         return new_x
+        
+    def blank_padding(self, img, av_lum, final_size:list): 
+        w = final_size[1]
+        h = final_size[0]
+        try:
+            if img.shape[0] > h:
+                img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
+            if img.shape[1] > w:
+                img =cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
+        except Exception as e:
+            print(f"Error occurred: {e}")
+        return img
 
     def label_oh_tf(self, lab):	#device,
-    	one_hot = np.zeros(11)
-    	lab = int(lab)
-    	one_hot[lab] = 1
-    	label = torch.tensor(one_hot)
-    	label = label.to(torch.float32)
-    	#label = label.to(device) #
-    	return label
+        one_hot = np.zeros(11)
+        lab = int(lab)
+        one_hot[lab] = 1
+        label = torch.tensor(one_hot)
+        label = label.to(torch.float32)
+        label= label.to(self.device)
+        #label = label.to(device) #
+        return label
         
-    def colour_size_tense(self,idx, vg =False):
-        im = cv2.imread(self.img_path[idx])
-
-        
+    def colour_size_tense(self,image, vg =False):
+        im = cv2.imread(image)
         im = cv2.resize(im, (self.res[0], self.res[1]))
         if self.pad > 0: 
             im = self.padding(img=im, pad_size=self.pad)
@@ -528,18 +541,19 @@ class IDSWDataSetLoader2(Dataset):
         # what object to return
         size= self.res
         pad = self.pad
-
+        #print("_getitem_ idx   ",idx)
         if self.model_name == 'vgg16':
             #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
             #print('vgg registered')
-            tense = self.colour_size_tense(idx, vg=True) #[29, 9], 15, 5, [8,3]
+            tense = self.colour_size_tense(self.img_path[idx], vg=True) #[29, 9], 15, 5, [8,3]
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
             #print('7c and small size registered')
-            tense = self.colour_size_tense(idx, vg=True)
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
         else:
             #print('coloursizetense as norm registered')
-            tense = self.colour_size_tense(idx)
-
+            tense = self.colour_size_tense(self.img_path[idx])
+        #plt.imshow()
+        
         label = self.label_oh_tf(self.labels[idx])
         return tense, label
 

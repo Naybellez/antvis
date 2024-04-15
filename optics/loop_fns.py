@@ -211,11 +211,15 @@ def loop_batch(model, data, loss_fn, device, size, pad, num_classes, model_name,
 
     #print(model_name)
 
-    for idx, img in enumerate(X):
+    for idx, data in enumerate(X):
+        tense, label = data
+        print(label.shape)
+        print(tense.shape)
+        
         
 
         prediction = model.forward(tense)
-        label = label_oh_tf(Y[idx], num_classes).to(device)
+        #label = label_oh_tf(Y[idx], num_classes).to(device)
         #if train:
         #	lr_ls.append(optimizer.param_groups[0]['lr'])
         loss = loss_fn(prediction, label)
