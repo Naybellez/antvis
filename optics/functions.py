@@ -450,6 +450,7 @@ class IDSWDataSetLoader(Dataset):
 
 
 
+    
 class IDSWDataSetLoader2(Dataset):
     def __init__(self, x, y, res,pad,av_lum, model_name, device): # transform =True
         super(Dataset, self).__init__()
@@ -503,17 +504,56 @@ class IDSWDataSetLoader2(Dataset):
         new_x[:,-pad_size:,:] = left_x
         return new_x
         
-    def blank_padding(self, img, av_lum, final_size:list): 
+    def blank_padding(self, img, av_lum, final_size:tuple): 
         w = final_size[1]
         h = final_size[0]
+        #print("h,w ",h, w)
+        #print("bp img shape", img.shape)
+        #print("bp  1  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
         try:
             if img.shape[0] > h:
                 img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
             if img.shape[1] > w:
                 img =cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
+            #print("bp ",img.shape)
         except Exception as e:
             print(f"Error occurred: {e}")
-        return img
+
+        #print("bp  2  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+
+        delta_w = w -img.shape[1]
+        delta_h = h-img.shape[0]
+
+        half_delta_h = int(np.floor(delta_h/2))
+        half_delta_w = int(np.floor(delta_w/2))
+
+        new_x = np.full((h,w,3), av_lum) 
+        #print("bp  3  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+        #return img
+        
+        if img.shape[1]%2 ==0: 
+            if img.shape[0]%2 == 0: 
+                if half_delta_w == 0:
+                    if half_delta_h ==0:
+                        new_x[:,:,:] = img # h=72 w=224
+                        #print("bp  4  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+                    else:
+                        new_x[half_delta_h:-half_delta_h,:,:] = img
+                        #print("bp  5  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+                else:
+                    new_x[half_delta_h:-half_delta_h,half_delta_w:-half_delta_w,:] = img
+                    #print("bp  6  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-half_delta_w,:] = img
+                #print("bp  7  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+        else:
+            if img.shape[0]%2 == 0:
+                new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
+                #print("bp  8  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
+                #print("bp  9  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+        return new_x
 
     def label_oh_tf(self, lab):	#device,
         one_hot = np.zeros(11)
@@ -532,6 +572,8 @@ class IDSWDataSetLoader2(Dataset):
             im = self.padding(img=im, pad_size=self.pad)
         if vg:
             im = self.blank_padding(im, self.av_lum, (224,224)) 
+            #print('vgg registered')
+            #print("cst ",im.shape)
 
         im = im/255 #norm
         im = self.to_tensor(im) 
@@ -546,6 +588,7 @@ class IDSWDataSetLoader2(Dataset):
             #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
             #print('vgg registered')
             tense = self.colour_size_tense(self.img_path[idx], vg=True) #[29, 9], 15, 5, [8,3]
+            #print("_getitem_ ",tense.shape)
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
             #print('7c and small size registered')
             tense = self.colour_size_tense(self.img_path[idx], vg=True)
