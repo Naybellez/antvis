@@ -177,7 +177,7 @@ def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
 
         def forward(self, x):
           x= self.conv_layers(x)
-          x = x.flatten()
+          x = x.flatten(start_dim=1)
           x = x.squeeze()
           x = self.linear_1(x)
           return x
@@ -219,7 +219,7 @@ def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
 
         def forward(self, x):
           x= self.conv_layers(x)
-          x = x.flatten()
+          x = x.flatten(start_dim=1)
           x = x.squeeze()
           x = self.linear_1(x)
           return x
@@ -255,7 +255,7 @@ def smallnet3(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
 
         def forward(self, x):
           x= self.conv_layers(x)
-          x = x.flatten()
+          x = x.flatten(start_dim=1)
           x = x.squeeze()
           x = self.linear_1(x)
           return x

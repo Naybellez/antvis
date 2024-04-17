@@ -284,7 +284,7 @@ class  ImageProcessor():
         #print(im.shape)
         return im
 
-    def view(self, img, scale:int):
+    def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
         if type(img) == torch.Tensor:
             img = img.squeeze()
             img = img.permute(1,2,0)
@@ -294,6 +294,11 @@ class  ImageProcessor():
             img = img*scale
         elif type(img) == str:
             cv2.imread(img)
+        if save_dict != None:
+            res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
+            #plt.imsave(res)
+            #plt.savefig
         plt.imshow(img)
         plt.axis(False)
         plt.show()
