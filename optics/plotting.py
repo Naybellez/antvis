@@ -19,21 +19,26 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
     save_location = check_save_path(save_location)
     sns.set()
     #print(predictions)
-    predict_list = [int(t.argmax()) for t in predictions] ##
-    #print("2 p ",predict_list[:10], type(predict_list))
-    #print(predictions)
-    predict_list = [int(t.numpy()) for t in predictions]
+    if type(predictions[0]) != int and type(predictions[0]) != list:
+        predict_list = [int(t.argmax()) for t in predictions] ##
+        #print("2 p ",predict_list[:10], type(predict_list))
+        #print(predictions)
+        predict_list = [int(t.numpy()) for t in predictions]
+    else:
+        predict_list = predictions
+    
     #print("3 p ",predict_list[:10], type(predict_list))
 
 
     #print("1  a ", actual[:10], type(actual))
-    actual = [int(l.argmax()) for l in actual]
+    if type(actual[0])!= int:
+        actual = [int(l.argmax()) for l in actual]
     #print("2  a ", actual[:10], type(actual))
 
     actual = np.array(actual)
     #print("3  a ", actual[:10], type(actual))
     predict_list = np.array(predict_list)
-    print(len(predict_list), len(actual))
+    #print(len(predict_list), len(actual))
     
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
