@@ -597,6 +597,9 @@ class IDSWDataSetLoader2(Dataset):
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
             #print('7c and small size registered')
             tense = self.colour_size_tense(self.img_path[idx], vg=True)
+        elif (self.model_name == '6c3l' and self.res == [15, 5]) or (self.model_name == '6c3l' and size ==[8, 3]): #and size == [29, 9]) or (self.model_name == '6c3l'
+            #print('7c and small size registered')
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
         else:
             #print('coloursizetense as norm registered')
             tense = self.colour_size_tense(self.img_path[idx])
