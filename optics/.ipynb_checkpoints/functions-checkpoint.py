@@ -284,7 +284,7 @@ class  ImageProcessor():
         #print(im.shape)
         return im
 
-    def view(self, img, scale:int):
+    def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
         if type(img) == torch.Tensor:
             img = img.squeeze()
             img = img.permute(1,2,0)
@@ -294,6 +294,11 @@ class  ImageProcessor():
             img = img*scale
         elif type(img) == str:
             cv2.imread(img)
+        if save_dict != None:
+            res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
+            #plt.imsave(res)
+            #plt.savefig
         plt.imshow(img)
         plt.axis(False)
         plt.show()
@@ -448,6 +453,9 @@ class IDSWDataSetLoader(Dataset):
         label = label_oh_tf(self.labels[idx], 11)
         return tense, label
 
+
+
+    
 class IDSWDataSetLoader2(Dataset):
     def __init__(self, x, y, res,pad,av_lum, model_name, device): # transform =True
         super(Dataset, self).__init__()
@@ -500,25 +508,77 @@ class IDSWDataSetLoader2(Dataset):
         new_x[:,pad_size:-pad_size,:] = img
         new_x[:,-pad_size:,:] = left_x
         return new_x
+        
+    def blank_padding(self, img, av_lum, final_size:tuple): 
+        w = final_size[1]
+        h = final_size[0]
+        #print("h,w ",h, w)
+        #print("bp img shape", img.shape)
+        #print("bp  1  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+        try:
+            if img.shape[0] > h:
+                img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
+            if img.shape[1] > w:
+                img =cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
+            #print("bp ",img.shape)
+        except Exception as e:
+            print(f"Error occurred: {e}")
+
+        #print("bp  2  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+
+        delta_w = w -img.shape[1]
+        delta_h = h-img.shape[0]
+
+        half_delta_h = int(np.floor(delta_h/2))
+        half_delta_w = int(np.floor(delta_w/2))
+
+        new_x = np.full((h,w,3), av_lum) 
+        #print("bp  3  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+        #return img
+        
+        if img.shape[1]%2 ==0: 
+            if img.shape[0]%2 == 0: 
+                if half_delta_w == 0:
+                    if half_delta_h ==0:
+                        new_x[:,:,:] = img # h=72 w=224
+                        #print("bp  4  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+                    else:
+                        new_x[half_delta_h:-half_delta_h,:,:] = img
+                        #print("bp  5  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+                else:
+                    new_x[half_delta_h:-half_delta_h,half_delta_w:-half_delta_w,:] = img
+                    #print("bp  6  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-half_delta_w,:] = img
+                #print("bp  7  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+        else:
+            if img.shape[0]%2 == 0:
+                new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
+                #print("bp  8  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
+                #print("bp  9  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+        return new_x
 
     def label_oh_tf(self, lab):	#device,
-    	one_hot = np.zeros(11)
-    	lab = int(lab)
-    	one_hot[lab] = 1
-    	label = torch.tensor(one_hot)
-    	label = label.to(torch.float32)
-    	#label = label.to(device) #
-    	return label
+        one_hot = np.zeros(11)
+        lab = int(lab)
+        one_hot[lab] = 1
+        label = torch.tensor(one_hot)
+        label = label.to(torch.float32)
+        label= label.to(self.device)
+        #label = label.to(device) #
+        return label
         
-    def colour_size_tense(self,idx, vg =False):
-        im = cv2.imread(self.img_path[idx])
-
-        
+    def colour_size_tense(self,image, vg =False):
+        im = cv2.imread(image)
         im = cv2.resize(im, (self.res[0], self.res[1]))
         if self.pad > 0: 
             im = self.padding(img=im, pad_size=self.pad)
         if vg:
             im = self.blank_padding(im, self.av_lum, (224,224)) 
+            #print('vgg registered')
+            #print("cst ",im.shape)
 
         im = im/255 #norm
         im = self.to_tensor(im) 
@@ -528,18 +588,23 @@ class IDSWDataSetLoader2(Dataset):
         # what object to return
         size= self.res
         pad = self.pad
-
+        #print("_getitem_ idx   ",idx)
         if self.model_name == 'vgg16':
             #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
             #print('vgg registered')
-            tense = self.colour_size_tense(idx, vg=True) #[29, 9], 15, 5, [8,3]
+            tense = self.colour_size_tense(self.img_path[idx], vg=True) #[29, 9], 15, 5, [8,3]
+            #print("_getitem_ ",tense.shape)
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
             #print('7c and small size registered')
-            tense = self.colour_size_tense(idx, vg=True)
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
+        elif (self.model_name == '6c3l' and self.res == [15, 5]) or (self.model_name == '6c3l' and size ==[8, 3]): #and size == [29, 9]) or (self.model_name == '6c3l'
+            #print('7c and small size registered')
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
         else:
             #print('coloursizetense as norm registered')
-            tense = self.colour_size_tense(idx)
-
+            tense = self.colour_size_tense(self.img_path[idx])
+        #plt.imshow()
+        
         label = self.label_oh_tf(self.labels[idx])
         return tense, label
 
