@@ -651,56 +651,142 @@ def read_in_json(file_path, file_name):
         print("Error decoding Json")
         print(e)
     
-#prepro = ImageProcessor(device)
-#self.x_train = prepro.colour_size_tense(x_train, col_dict['colour'], col_dict['size'], col_dict['pad'])
-#self.x_val = prepro.colour_size_tense(x_val, col_dict['colour'], col_dict['size'], col_dict['pad'])
-#self.x_test = prepro.colour_size_tense(x_test , col_dict['colour'], col_dict['size'], col_dict['pad'])
-
-#self.y = label_oh_tf(11)
-"""train_loader = DataLoader(
-	list(zip(self.x_train, self.y_train)),
-	shuffle=True,
-	batch_size=16
-	)
-val_loader = DataLoader(
-	list(zip(self.x_val, self.y_val)),
-	shuffle=True,
-	batch_size=16
-	)
-test_loader = DataLoader(
-	list(zip(self.x_test, self.y_test)),
-	shuffle=True,
-	batch_size=16
-	)
-return train_loader, test_loader, val_loader"""
 
 
 
-"""		def _import_imagedata(self, file_path): 
-# import image data from dir
-images = []
-labels = []
+class IDSWDataSetLoader7(Dataset):
+    
+    def __init__(self, img_path, labels, av_lum, transform=None, res = (452, 144)): 
+        super(Dataset, self).__init__()
+        self.img_path = img_path
+        self.labels = labels
+        self.av_lum = av_lum
+        self.transform= transform
+        self.res = res
+        
+    def __len__(self):
+        # length of dataset
+        return len(self.labels)
+        pass
 
-for file in os.listdir(file_path):
-	if file[0:4] == 'IDSW':
-		j = file_path+file
-		i=int(file[5:7]) -1
-		i = str(i)
-		labels.append(i)
-		images.append(j)
-label_arr =np.array(labels)
-image_arr = np.array(images)
-return image_arr, label_arr
+    def get_padding(self, img,  final_size=(224, 224)): 
+        import cv2
+        import numpy as np
+        output_height = final_size[0]
+        output_width = final_size[1]
+    
+        try:
+            if img.shape[0] > output_height:
+                img = cv2.resize(img, (output_height, img.shape[1]), interpolation = cv2.INTER_NEAREST) # this might be the issue
+                
+    
+            if img.shape[1] > output_width:
+                img = cv2.resize(img, (img.shape[0], output_width), interpolation = cv2.INTER_NEAREST)
+    
+        except Exception as e:
+            print(f"Image Resizing Error Occurred: {e}")
+    
+        image_height = img.shape[0]
+        image_width = img.shape[1]
+    
+        delta_width = output_width - image_width
+        delta_height = output_height - image_height
+    
+        half_delta_height = int(np.floor(delta_height/2))
+        half_delta_width = int(np.floor(delta_width/2))
 
-def get_data(self, file_path):
-# split data into sets
-x_arr, y_arr = self._import_imagedata(file_path)
-self.n_samples = len(x_arr) # get len of whole dataset
 
-random_seed = random.seed(3)
+        if isinstance(delta_height/2, int):
+            half_delta_height1, half_delta_height2 = half_delta_height, half_delta_height
+        else:
+            half_delta_width1, half_delta_width2 = half_delta_width, (half_delta_width+1)
+        if isinstance(delta_width/2, int):
+            half_delta_height1, half_delta_height2 = half_delta_height, half_delta_height
+        else:
+            half_delta_height1, half_delta_height2 = half_delta_height, (half_delta_height+1)
+        
+        return half_delta_height1, half_delta_height2, half_delta_width1, half_delta_width2
+    
+    def __getitem__(self, idx, vgg=False):
+        import cv2
+        from PIL import Image
+        from torchvision import transforms
+       # read in image with cv2 so that padding calculations can occur (array)
+        img = cv2.imread(self.img_path[idx])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-x_train, x_test, y_train, y_test = train_test_split(x_arr, y_arr, test_size=0.3, random_state=random_seed)
-x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
+        label = self.labels[idx]
+        # resize
+        new_lum = int(round(self.av_lum*255))
+        yaw_padded_img, yaw_padded_label = self.Yaw_padding(new_lum)({"image": img, "label": label})
+        img = cv2.resize(yaw_padded_img, (self.res[0], self.res[1]))
+        
+        if vgg==True:
+            
+            
+            h_delta_height1, h_delta_height2, h_delta_width1, h_delta_width2 = self.get_padding(img)
+            pil_im = Image.fromarray(yaw_padded_img, mode="RGB")
+            # create new image with set size coloured with average luminance
+            pil_res2 = Image.new(pil_im.mode, (224, 224), (new_lum, new_lum, new_lum))  #(int(av_lum), int(av_lum), int(av_lum)
+            # paste the resized image (from array) onto the grey padded background image
+            pil_res2.paste(pil_im, (h_delta_width1, h_delta_height1))
+            ## at this point, the image looks good
+            # convert the PIL image to a tensor
+            transform = transforms.Compose([
+                transforms.PILToTensor()
+            ])
+            
+            tans_img = transform(pil_res2)
+        else:
+            tans_img = Image.fromarray(yaw_padded_img, mode="RGB")
+        
+        tans_img = tans_img/255
+        
+        label = self.Label_oh_tf()({"image": img, "label": label})
+       
+        return tans_img, label
 
-return x_train, y_train, x_val, y_val, x_test, y_test
-"""
+    class PrintShape(object):
+        def __call__(self, sample):
+            image, lab = sample['image'], sample['label']
+            return image.shape
+    
+    class Permute_im(object): 
+        def __call__(self, sample):
+            
+            image, lab = sample['image'], sample['label']
+            image = F.normalize(image)
+    
+            return image, label
+    
+    class Label_oh_tf(object):	#device,
+        def __call__(self, sample):
+            import numpy as np
+            import torch
+            image, lab = sample['image'], sample['label'] 
+            one_hot = np.zeros(11)
+    
+            lab = int(lab)
+            one_hot[lab] = 1
+            label = torch.tensor(one_hot)
+            label = label.to(torch.float32)
+    
+            return image, label
+    
+    
+    class Yaw_padding(object):
+        import numpy as np
+        def __init__(self, av_lum):
+            self.av_lum=av_lum
+        def __call__(self, sample, pad_size=3):
+            img, lab = sample['image'], sample['label']
+            left_x = img[:,:pad_size,:] # h, w, c
+            right_x = img[:,-pad_size:,:]
+            y = img.shape[0]
+            x = img.shape[1]+(pad_size*2)
+            new_x = np.full((y, x, 3),self.av_lum, dtype=np.uint8) # h w c
+            new_x[:,:pad_size,:] = right_x
+            new_x[:,pad_size:-pad_size,:] = img
+            new_x[:,-pad_size:,:] = left_x
+    
+            return  new_x, lab
