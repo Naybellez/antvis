@@ -40,14 +40,14 @@ from torch.utils.data import DataLoader, Dataset
 
 def build_optimizer(network, optimizer, learning_rate, weight_decay=0):
     if optimizer == 'SGD':
+
         optimizer = torch.optim.SGD(network.parameters(),
                               lr=learning_rate, momentum=0.9)
     elif optimizer == "adam":
-        if weight_decay == 0:
-            optimizer = torch.optim.Adam(network.parameters(),
-                               lr=learning_rate)
+        #if weight_decay == 0:
+            
         optimizer = torch.optim.Adam(network.parameters(),
-                               lr=learning_rate, weight_decay=weight_decay)
+                                     lr=learning_rate, weight_decay=weight_decay)
     return optimizer
 
 
@@ -72,6 +72,35 @@ def set_lossfn(lf):
         loss_fn = nn.CrossEntropyLoss()
     return loss_fn
 
+def choose_model(config):
+    #print('c5', type(config))
+    #print(config.model_name)
+    for model_card in config.model_cards:
+        if model_card['name'] == '4c3l':
+            return smallnet1(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks= config.ks)
+        elif model_card['name'] == '3c2l':
+            return smallnet2(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks = config.ks)
+        elif model_card['name'] == '2c2l':
+            return smallnet3(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks=config.ks)
+        elif model_card['name'] == '7c3l':
+            return sevennet(in_chan=config.channels, f_lin_lay=config.first_lin_lay, l_lin_lay=config.num_classes, ks=config.ks, dropout= config.dropout)
+        elif model_card['name'] == 'vgg16':
+            model_vgg16 = vgg16(weights="IMAGENET1K_V1")
+            vgg_feats = model_vgg16.features
+            vgg_classifier = model_vgg16.classifier
+            vgg_classifier.pop(6)
+    
+            vgg = nn.Sequential(
+                vgg_feats,
+                Flattern(),
+                vgg_classifier,
+                nn.Linear(4096,11),
+                nn.Softmax(dim=0),
+                )
+            return vgg
+        else:
+            print('Model Name Not Recognised')
+"""
 def choose_model(config):
     #print('c5', type(config))
     #print(config.model_name)
@@ -102,6 +131,8 @@ def choose_model(config):
     else:
         print('Model Name Not Recognised')
 
+
+"""
 #           PIPLINE FUNCTIONS
 #from loop_fns import print_gpu_mem
                                 # HP Sweep

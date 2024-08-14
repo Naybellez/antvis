@@ -6,16 +6,40 @@ from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, Confusio
 import pickle
 import seaborn as sns
 
-def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
-    sns.set()
-    predict_list = [int(t.argmax()) for t in predictions] ##
-    predict_list = [int(t.numpy()) for t in predictions]
-    actual = [int(l) for l in actual]
 
+def check_save_path(save_location):
+    if save_location is not None:
+        if save_location[-1]!= '/':
+            save_location = save_location+'/'
+    return save_location
+
+def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
+    #print("1 p ", predictions[:10], type(predictions))
+    print(len(predictions), len(actual))
+    save_location = check_save_path(save_location)
+    sns.set()
+    #print(predictions)
+    if type(predictions[0]) != int and type(predictions[0]) != list:
+        predict_list = [int(t.argmax()) for t in predictions] ##
+        #print("2 p ",predict_list[:10], type(predict_list))
+        #print(predictions)
+        predict_list = [int(t.numpy()) for t in predictions]
+    else:
+        predict_list = predictions
+    
+    #print("3 p ",predict_list[:10], type(predict_list))
+
+
+    #print("1  a ", actual[:10], type(actual))
+    if type(actual[0])!= int:
+        actual = [int(l.argmax()) for l in actual]
+    #print("2  a ", actual[:10], type(actual))
 
     actual = np.array(actual)
+    #print("3  a ", actual[:10], type(actual))
     predict_list = np.array(predict_list)
-
+    #print(len(predict_list), len(actual))
+    
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
 
@@ -26,7 +50,7 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
     plt.xlabel('Predicted Label', font2)
     plt.ylabel('Target Label', font2)
     if save_location != None:
-        plt.savefig(save_location+'Conf_mtrx'+title+run_name+'.png', format='png')
+        plt.savefig(save_location+'/'+'Conf_mtrx'+title+run_name+'.png', format='png')
     else:
         print("Save Location Not Specified!")
     plt.show()
@@ -47,6 +71,7 @@ def metrics(label, prediction): #TypeError: Singleton array tensor(3) cannot be 
     return acc
 
 def learning_curve(t_loss, v_loss, save_location,run_name:str):
+    save_location = check_save_path(save_location)
     lab = "Learning Curve "+run_name
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
@@ -64,7 +89,8 @@ def learning_curve(t_loss, v_loss, save_location,run_name:str):
         print("Save Location Not Specified!")
     plt.show()
 
-def accuracy_curve(v_accuracy_list, t_accuracy_list, save_location,run_name:str):
+def accuracy_curve(t_accuracy_list, v_accuracy_list,save_location,run_name:str):
+    save_location = check_save_path(save_location)
     lab = "Accuracy Curve"+run_name
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
@@ -76,7 +102,7 @@ def accuracy_curve(v_accuracy_list, t_accuracy_list, save_location,run_name:str)
     plt.ylabel('Accuracy', font2)
     plt.legend()
     if save_location != None:
-        plt.savefig(save_location+lab+'.png', format='png')
+        plt.savefig(save_location+'/'+lab+'.png', format='png')
     else:
         print("Save Location Not Specified!")
     plt.show()
