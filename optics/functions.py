@@ -217,8 +217,9 @@ class  ImageProcessor():
 
     # tenor functions
     def tensoring(self, img):
+        img = img/255
         tense = torch.tensor(img, dtype=torch.float32)
-        tense = F.normalize(tense)
+        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -285,15 +286,17 @@ class  ImageProcessor():
         return im
 
     def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
-        if type(img) == torch.Tensor:
+        if isinstance(img, torch.Tensor):  #type(img) == torch.Tensor:
             img = img.squeeze()
             img = img.permute(1,2,0)
             img=np.array(img.cpu())*scale
 
-        elif type(img) == np.ndarray:
+        elif isinstance(img, np.ndarray): # type(img) == np.ndarray:
             img = img*scale
-        elif type(img) == str:
-            cv2.imread(img)
+        elif isinstance(img, str): # type(img) == str:
+            print("here 1")
+            img = cv2.imread(img)
+            print("here 2")
         if save_dict != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
@@ -416,7 +419,7 @@ class IDSWDataSetLoader(Dataset):
     # tenor functions
     def tensoring(self, img):
         tense = torch.tensor(img, dtype=torch.float32)
-        tense = F.normalize(tense)
+        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -485,7 +488,7 @@ class IDSWDataSetLoader2(Dataset):
     # tenor functions
     def tensoring(self, img):
         tense = torch.tensor(img, dtype=torch.float32)
-        tense = F.normalize(tense)
+        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -589,7 +592,7 @@ class IDSWDataSetLoader2(Dataset):
         size= self.res
         pad = self.pad
         #print("_getitem_ idx   ",idx)
-        if self.model_name == 'vgg16':
+        if self.model_name == 'vgg16' or self.model_name=='vgg':
             #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
             #print('vgg registered')
             tense = self.colour_size_tense(self.img_path[idx], vg=True) #[29, 9], 15, 5, [8,3]
@@ -656,13 +659,14 @@ def read_in_json(file_path, file_name):
 
 class IDSWDataSetLoader7(Dataset):
     
-    def __init__(self, img_path, labels, av_lum, transform=None, res = (452, 144)): 
+    def __init__(self, img_path, labels, av_lum, transform=None, res = (452, 144), vgg=False): 
         super(Dataset, self).__init__()
         self.img_path = img_path
         self.labels = labels
         self.av_lum = av_lum
         self.transform= transform
         self.res = res
+        self.vgg = vgg
         
     def __len__(self):
         # length of dataset
@@ -707,7 +711,7 @@ class IDSWDataSetLoader7(Dataset):
         
         return half_delta_height1, half_delta_height2, half_delta_width1, half_delta_width2
     
-    def __getitem__(self, idx, vgg=False):
+    def __getitem__(self, idx):
         import cv2
         from PIL import Image
         from torchvision import transforms
@@ -720,28 +724,32 @@ class IDSWDataSetLoader7(Dataset):
         new_lum = int(round(self.av_lum*255))
         yaw_padded_img, yaw_padded_label = self.Yaw_padding(new_lum)({"image": img, "label": label})
         img = cv2.resize(yaw_padded_img, (self.res[0], self.res[1]))
-        
-        if vgg==True:
-            
-            
-            h_delta_height1, h_delta_height2, h_delta_width1, h_delta_width2 = self.get_padding(img)
-            pil_im = Image.fromarray(yaw_padded_img, mode="RGB")
-            # create new image with set size coloured with average luminance
-            pil_res2 = Image.new(pil_im.mode, (224, 224), (new_lum, new_lum, new_lum))  #(int(av_lum), int(av_lum), int(av_lum)
-            # paste the resized image (from array) onto the grey padded background image
-            pil_res2.paste(pil_im, (h_delta_width1, h_delta_height1))
-            ## at this point, the image looks good
-            # convert the PIL image to a tensor
-            transform = transforms.Compose([
+
+
+        transform = transforms.Compose([
                 transforms.PILToTensor()
             ])
             
+        if self.vgg==True:
+            
+            
+            h_delta_height1, h_delta_height2, h_delta_width1, h_delta_width2 = self.get_padding(img)
+            print("here are the padding values: ",h_delta_width1, h_delta_height1, h_delta_width2, h_delta_height2)
+            pil_im = Image.fromarray(img, mode="RGB")
+            # create new image with set size coloured with average luminance
+            pil_res2 = Image.new(pil_im.mode, (224, 224), (new_lum, new_lum, new_lum))  #(int(av_lum), int(av_lum), int(av_lum)
+            # paste the resized image (from array) onto the grey padded background image
+            pil_res2.paste(pil_im, (h_delta_width1, h_delta_height1, -h_delta_width2, -h_delta_height2))
+            ## at this point, the image looks good
+            # convert the PIL image to a tensor
+            
             tans_img = transform(pil_res2)
         else:
-            tans_img = Image.fromarray(yaw_padded_img, mode="RGB")
+            tans_img = Image.fromarray(img, mode="RGB")
+            tans_img = transform(tans_img)
         
         tans_img = tans_img/255
-        
+       
         label = self.Label_oh_tf()({"image": img, "label": label})
        
         return tans_img, label
