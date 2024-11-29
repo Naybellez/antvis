@@ -240,7 +240,7 @@ def smallnet1(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
 
 
 
-def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
+def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5, start_dim=1):
     class SmallNet2(nn.Module):
         # 3 conv layers, 2 linear
         def __init__(self):
@@ -270,7 +270,7 @@ def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
 
         def forward(self, x):
           x= self.conv_layers(x)
-          x = x.flatten(start_dim=1)
+          x = x.flatten(start_dim=start_dim)
           x = x.squeeze()
           x = self.linear_1(x)
           return x
@@ -278,7 +278,7 @@ def smallnet2(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
     return model
 
 
-def smallnet3(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
+def smallnet3(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5, start_dim=1):
     class SmallNet3(nn.Module):
         # 2 conv layers, 2 linear
         def __init__(self):
@@ -306,7 +306,7 @@ def smallnet3(in_chan, f_lin_lay, l_lin_lay, ks, dropout=0.5):
 
         def forward(self, x):
           x= self.conv_layers(x)
-          x = x.flatten(start_dim=1)
+          x = x.flatten(start_dim=start_dim)
           x = x.squeeze()
           x = self.linear_1(x)
           return x

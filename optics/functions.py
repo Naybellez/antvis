@@ -17,6 +17,9 @@ import csv
 import json
 from datetime import date
 import collections
+from architectures import PrintLayer
+from architectures import sevennet, smallnet1, smallnet2, smallnet3
+from torchvision.models import vgg16
 pp = pprint.PrettyPrinter(indent=4)
 
 
@@ -59,6 +62,140 @@ def label_oh_tf(lab, num_classes):	#device,
 	label = label.to(torch.float32)
 	#label = label.to(device) #
 	return label
+
+def choose_model(model_name, lin_lay, dropout):
+    if model_name == '4c3l':
+        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '3c2l':
+        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
+    elif model_name == '2c2l':
+        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '7c3l':
+        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == 'vgg16':
+        from torchvision.models import vgg16
+        model_vgg16 = vgg16()
+        vgg_classifier = model_vgg16.classifier
+        vgg_classifier.pop(6)
+        vgg_mod = nn.Sequential(
+            model_vgg16.features,
+            nn.Flatten(),
+            vgg_classifier,
+            nn.Linear(4096,11), # cheanging the output layer
+            nn.Softmax(dim=0),  
+            )
+                
+        return vgg_mod
+    else:
+        print('Model Name Not Recognised')
+
+def choose_model2(model_name, lin_lay, dropout): # this version uses an imported vgg16 model [No Weights] with a custom output linear layer. 
+    if model_name == '4c3l':
+        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '3c2l':
+        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
+    elif model_name == '2c2l':
+        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '7c3l':
+        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == 'vgg16':
+        #self.flatten = nn.Flatten()
+        model_vgg16 = vgg16()
+        vgg_feats = model_vgg16.features
+        vgg_classifier = model_vgg16.classifier
+        vgg_classifier.pop(6)
+
+        vgg = nn.Sequential(
+            vgg_feats,
+            nn.Flatten(),
+            vgg_classifier,
+            nn.Linear(4096,11), # cheanging the output layer
+            nn.Softmax(dim=0),  
+            )
+        return vgg
+    else:
+        print('Model Name Not Recognised')
+
+
+def choose_model1(model_name, lin_lay, dropout): # this version creates vgg16 layer by layer, NOT an imported model
+
+    if model_name == '4c3l':
+        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '3c2l':
+        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
+    elif model_name == '2c2l':
+        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '7c3l':
+        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == 'vgg16':
+        class VGG16Smaller(nn.Module):
+            def __init__(self,lin_lay, num_classes=11): #64512
+                super(VGG16Smaller, self).__init__()
+                self.layer1 = nn.Sequential(
+                    nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+                    nn.BatchNorm2d(64),
+                    nn.ReLU())
+                self.layer2 = nn.Sequential(
+                    nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+                    nn.BatchNorm2d(64),
+                    nn.ReLU(), 
+                    nn.MaxPool2d(kernel_size = 2, stride = 2))
+                self.layer3 = nn.Sequential(
+                    nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+                    nn.BatchNorm2d(128),
+                    nn.ReLU())
+                self.layer4 = nn.Sequential(
+                    nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+                    nn.BatchNorm2d(128),
+                    nn.ReLU(),
+                    nn.MaxPool2d(kernel_size = 2, stride = 2))
+                self.layer5 = nn.Sequential(
+                    nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+                    nn.BatchNorm2d(256),
+                    nn.ReLU())
+                self.layer6 = nn.Sequential(
+                    nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+                    nn.BatchNorm2d(256),
+                    nn.ReLU())
+                self.layer7 = nn.Sequential(
+                    nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+                    nn.BatchNorm2d(256),
+                    nn.ReLU(),
+                    nn.MaxPool2d(kernel_size = 2, stride = 2))
+                self.fc = nn.Sequential(
+                    nn.Dropout(0.5),
+                    nn.Linear(lin_lay, 4096), # 1032192 and 4096x4096)
+                    nn.ReLU())
+                self.fc1 = nn.Sequential(
+                    nn.Dropout(0.5),
+                    nn.Linear(4096, 4096),
+                    nn.ReLU())
+                self.fc2= nn.Sequential(
+                    nn.Linear(4096, num_classes))
+                
+            def forward(self, x):
+                out = self.layer1(x)
+                out = self.layer2(out)
+                out = self.layer3(out)
+                out = self.layer4(out)
+                out = self.layer5(out)
+                out = self.layer6(out)
+                out = self.layer7(out)
+                PrintLayer()
+                out = out.reshape(out.size(0), -1)
+                out = out.flatten(start_dim=1)
+                PrintLayer()
+                out = self.fc(out)
+                out = self.fc1(out)
+                out = self.fc2(out)
+                out = F.log_softmax(out, dim=1) 
+                return out
+        vgg = VGG16Smaller(lin_lay)
+        return vgg
+    else:
+        print('Model Name Not Recognised')
+
+
 
 
 # 	IMAGE DATA FUNCTIONS
@@ -285,7 +422,7 @@ class  ImageProcessor():
         #print(im.shape)
         return im
 
-    def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
+    def trans_to_img(self, img, scale):
         if isinstance(img, torch.Tensor):  #type(img) == torch.Tensor:
             img = img.squeeze()
             img = img.permute(1,2,0)
@@ -294,9 +431,13 @@ class  ImageProcessor():
         elif isinstance(img, np.ndarray): # type(img) == np.ndarray:
             img = img*scale
         elif isinstance(img, str): # type(img) == str:
-            print("here 1")
+            #print("here 1")
             img = cv2.imread(img)
-            print("here 2")
+            #print("here 2")
+        return img
+
+    def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
+        img = self.trans_to_img(img, scale)
         if save_dict != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
@@ -575,6 +716,7 @@ class IDSWDataSetLoader2(Dataset):
         
     def colour_size_tense(self,image, vg =False):
         im = cv2.imread(image)
+        #print(type(im), im.shape)
         im = cv2.resize(im, (self.res[0], self.res[1]))
         if self.pad > 0: 
             im = self.padding(img=im, pad_size=self.pad)
