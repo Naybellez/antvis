@@ -34,19 +34,6 @@ def load_pickle(file_path):
             print('file path not recognised')
     return embedding_dict
 
-#def split_by_label(embedding_dict, num_classes:int, label_name:str):
-#    for i in range(num_classes):
-#        embed+str(i) = embedding_dict.loc[embedding_dict[label_name]== str(i)]
-
-
-
-# data from dict, split by classes, added to list for analysis
-#
-##
-#
-
-
-
 # learning curve
 
 def learning_curve(t_loss_list, v_loss_list, epochs, save_location, run_name):
@@ -198,3 +185,11 @@ def plot_confusion(predictions:list, actual:list, title:str):
     disp.plot()
     plt.show()
 
+def check_best_accuracy(v_accuracy_list, best_valaccuracy): # this needs mroe thought
+    if v_accuracy_list[-1] > best_valaccuracy:
+        best_valaccuracy = v_accuracy_list[-1]
+        best_optim = optimizer
+        best_lossfn = loss_fn
+        best_lr = learning_rate
+        best_epoch = epoch
+    return best_valaccuracy, best_optim, best_lossfn, best_lr, best_epoch

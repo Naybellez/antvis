@@ -332,3 +332,11 @@ class Squeeze(nn.Module):
 		#x = x.squeeze(1)
 		#x = x.squeeze(1)
 		return x
+
+
+class Flattern(nn.Module):
+    def __init__(self):
+        super(Flattern, self).__init__()
+    def forward(self, x):
+        x = x.flatten()
+        return x

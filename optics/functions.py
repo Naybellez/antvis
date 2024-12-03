@@ -14,191 +14,51 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 import pprint
 import csv
-import json
 from datetime import date
-import collections
-from architectures import PrintLayer
-from architectures import sevennet, smallnet1, smallnet2, smallnet3
-from torchvision.models import vgg16
+
 pp = pprint.PrettyPrinter(indent=4)
 
 
-#		GET DATA FUNCTIONS
-def import_imagedata(file_path): # import image data from dir
-	images = []
-	labels = []
+#	#	GET DATA FUNCTIONS  #	#	GET DATA FUNCTIONS  #	#	GET DATA FUNCTIONS  #	#	GET DATA FUNCTIONS
+def import_imagedata(file_path): 
+    # import image data from dir
+    images = []
+    labels = []
+    print(file_path)
 
-	#file_path = r'/its/home/nn268/optics/images/'
+    for file in os.listdir(file_path):
+        if file[0:4] == 'IDSW':
+            j = file_path+file
+            i=int(file[5:7]) -1
+            i = str(i)
+            labels.append(i)
+            images.append(j)
+    label_arr =np.array(labels)
+    image_arr = np.array(images)
+    return image_arr, label_arr
 
-	for file in os.listdir(file_path):
-		if file[0:4] == 'IDSW':
-			j = file_path+file
-			i=int(file[5:7]) -1
-			i = str(i)
-			labels.append(i)
-			images.append(j)
-	label_arr =np.array(labels)
-	image_arr = np.array(images)
-	return image_arr, label_arr
+def get_data(random_seed, file_path):
+    #print(file_path)
+    img_len = len(os.listdir(file_path))
+    x, y = import_imagedata(file_path)
+    x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=0.3, train_size=0.7,
+                                     random_state=random_seed, shuffle=True)
+    x_train, x_val, y_train, y_val = train_test_split(x_train,y_train, test_size=0.3, train_size=0.7,
+                                     random_state=random_seed, shuffle=True)
+    return x_train, y_train, x_val, y_val, x_test, y_test
 
-def get_data(file_path, seed):
-	x, y = import_imagedata(file_path)
-	random_seed = random.seed(seed)
-	x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=random_seed)
-	x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
 
-	#train_loader = DataLoader(list(zip(x_train, y_train)), shuffle =True, batch_size=16) # machinelearningmastery.com
-	#val_loader = DataLoader(list(zip(x_val, y_val)), shuffle =True, batch_size=16)
-	#test_loader = DataLoader(list(zip(x_test, y_test)), shuffle = True, batch_size=16)
-	return x_train, y_train, x_val, y_val, x_test, y_test
-	#return train_loader, val_loader, test_loader
-
-# 		ONE HOT ENCODE LABEL DATA 
+# 	#	ONE HOT ENCODE LABEL DATA   # 	#	ONE HOT ENCODE LABEL DATA   # 	#	ONE HOT ENCODE LABEL DATA   # 	
 def label_oh_tf(lab, num_classes):	#device,
 	one_hot = np.zeros(num_classes)
 	lab = int(lab)
 	one_hot[lab] = 1
 	label = torch.tensor(one_hot)
 	label = label.to(torch.float32)
-	#label = label.to(device) #
 	return label
 
-def choose_model(model_name, lin_lay, dropout):
-    if model_name == '4c3l':
-        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == '3c2l':
-        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
-    elif model_name == '2c2l':
-        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == '7c3l':
-        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == 'vgg16':
-        from torchvision.models import vgg16
-        model_vgg16 = vgg16()
-        vgg_classifier = model_vgg16.classifier
-        vgg_classifier.pop(6)
-        vgg_mod = nn.Sequential(
-            model_vgg16.features,
-            nn.Flatten(),
-            vgg_classifier,
-            nn.Linear(4096,11), # cheanging the output layer
-            nn.Softmax(dim=0),  
-            )
-                
-        return vgg_mod
-    else:
-        print('Model Name Not Recognised')
 
-def choose_model2(model_name, lin_lay, dropout): # this version uses an imported vgg16 model [No Weights] with a custom output linear layer. 
-    if model_name == '4c3l':
-        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == '3c2l':
-        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
-    elif model_name == '2c2l':
-        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == '7c3l':
-        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == 'vgg16':
-        #self.flatten = nn.Flatten()
-        model_vgg16 = vgg16()
-        vgg_feats = model_vgg16.features
-        vgg_classifier = model_vgg16.classifier
-        vgg_classifier.pop(6)
-
-        vgg = nn.Sequential(
-            vgg_feats,
-            nn.Flatten(),
-            vgg_classifier,
-            nn.Linear(4096,11), # cheanging the output layer
-            nn.Softmax(dim=0),  
-            )
-        return vgg
-    else:
-        print('Model Name Not Recognised')
-
-
-def choose_model1(model_name, lin_lay, dropout): # this version creates vgg16 layer by layer, NOT an imported model
-
-    if model_name == '4c3l':
-        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == '3c2l':
-        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
-    elif model_name == '2c2l':
-        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == '7c3l':
-        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
-    elif model_name == 'vgg16':
-        class VGG16Smaller(nn.Module):
-            def __init__(self,lin_lay, num_classes=11): #64512
-                super(VGG16Smaller, self).__init__()
-                self.layer1 = nn.Sequential(
-                    nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
-                    nn.BatchNorm2d(64),
-                    nn.ReLU())
-                self.layer2 = nn.Sequential(
-                    nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-                    nn.BatchNorm2d(64),
-                    nn.ReLU(), 
-                    nn.MaxPool2d(kernel_size = 2, stride = 2))
-                self.layer3 = nn.Sequential(
-                    nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-                    nn.BatchNorm2d(128),
-                    nn.ReLU())
-                self.layer4 = nn.Sequential(
-                    nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-                    nn.BatchNorm2d(128),
-                    nn.ReLU(),
-                    nn.MaxPool2d(kernel_size = 2, stride = 2))
-                self.layer5 = nn.Sequential(
-                    nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-                    nn.BatchNorm2d(256),
-                    nn.ReLU())
-                self.layer6 = nn.Sequential(
-                    nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-                    nn.BatchNorm2d(256),
-                    nn.ReLU())
-                self.layer7 = nn.Sequential(
-                    nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-                    nn.BatchNorm2d(256),
-                    nn.ReLU(),
-                    nn.MaxPool2d(kernel_size = 2, stride = 2))
-                self.fc = nn.Sequential(
-                    nn.Dropout(0.5),
-                    nn.Linear(lin_lay, 4096), # 1032192 and 4096x4096)
-                    nn.ReLU())
-                self.fc1 = nn.Sequential(
-                    nn.Dropout(0.5),
-                    nn.Linear(4096, 4096),
-                    nn.ReLU())
-                self.fc2= nn.Sequential(
-                    nn.Linear(4096, num_classes))
-                
-            def forward(self, x):
-                out = self.layer1(x)
-                out = self.layer2(out)
-                out = self.layer3(out)
-                out = self.layer4(out)
-                out = self.layer5(out)
-                out = self.layer6(out)
-                out = self.layer7(out)
-                PrintLayer()
-                out = out.reshape(out.size(0), -1)
-                out = out.flatten(start_dim=1)
-                PrintLayer()
-                out = self.fc(out)
-                out = self.fc1(out)
-                out = self.fc2(out)
-                out = F.log_softmax(out, dim=1) 
-                return out
-        vgg = VGG16Smaller(lin_lay)
-        return vgg
-    else:
-        print('Model Name Not Recognised')
-
-
-
-
-# 	IMAGE DATA FUNCTIONS
+# 	IMAGE DATA FUNCTIONS # 	IMAGE DATA FUNCTIONS # 	IMAGE DATA FUNCTIONS # 	IMAGE DATA FUNCTIONS
 
 def Unwrap(imgIn): #Amani unwrap fn
 
@@ -478,63 +338,6 @@ def yaw(image, pixels):
         image[:,-1]= image[:,0]
         return image
 
-# Helpful printing functions. Could probably be deleated
-def print_run_header(learning_rate, optim, loss_fn):
-    print('\n')
-    print('LR: ', learning_rate)
-    print('optimiser ', optim)
-    print('loss fn: ', loss_fn)
-
-def print_run_type(run_type: str):
-    print('                  ----------------------')
-    print(f' \n                  {run_type}... \n')
-    print('                  ----------------------')
-
-def check_best_accuracy(v_accuracy_list, best_valaccuracy):
-    if v_accuracy_list[-1] > best_valaccuracy:
-        best_valaccuracy = v_accuracy_list[-1]
-        best_optim = optimizer
-        best_lossfn = loss_fn
-        best_lr = learning_rate
-        best_epoch = epoch
-    return best_valaccuracy, best_optim, best_lossfn, best_lr, best_epoch
-
-def print_top_results(best_optim, best_lossfn, best_lr, best_valaccuracy, best_epoch):
-    print('Top results from hyperparameter sweep:')
-    print()
-    print(best_optim, best_lossfn, best_lr, best_valaccuracy, best_epoch)
-
-"""
-def import_imagedata(file_path): # import image data from dir
-	images = []
-	labels = []
-
-	#file_path = r'/its/home/nn268/optics/images/'
-
-	for file in os.listdir(file_path):
-		if file[0:4] == 'IDSW':
-			j = file_path+file
-			i=int(file[5:7]) -1
-			i = str(i)
-			labels.append(i)
-			images.append(j)
-	label_arr =np.array(labels)
-	image_arr = np.array(images)
-	return image_arr, label_arr
-
-def get_data(file_path):
-	x, y = import_imagedata(file_path)
-	random_seed = random.seed()
-	x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=random_seed)
-	x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
-
-	#train_loader = DataLoader(list(zip(x_train, y_train)), shuffle =True, batch_size=16) # machinelearningmastery.com
-	#val_loader = DataLoader(list(zip(x_val, y_val)), shuffle =True, batch_size=16)
-	#test_loader = DataLoader(list(zip(x_test, y_test)), shuffle = True, batch_size=16)
-	return x_train, y_train, x_val, y_val, x_test, y_test
-	#return train_loader, val_loader, test_loader
-"""
-
 class IDSWDataSetLoader(Dataset):
     def __init__(self, x, y, col_dict, device): # transform =True
         super(Dataset, self).__init__()
@@ -597,9 +400,6 @@ class IDSWDataSetLoader(Dataset):
         label = label_oh_tf(self.labels[idx], 11)
         return tense, label
 
-
-
-    
 class IDSWDataSetLoader2(Dataset):
     def __init__(self, x, y, res,pad,av_lum, model_name, device): # transform =True
         super(Dataset, self).__init__()
@@ -656,9 +456,7 @@ class IDSWDataSetLoader2(Dataset):
     def blank_padding(self, img, av_lum, final_size:tuple): 
         w = final_size[1]
         h = final_size[0]
-        #print("h,w ",h, w)
-        #print("bp img shape", img.shape)
-        #print("bp  1  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
+
         try:
             if img.shape[0] > h:
                 img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
@@ -668,8 +466,6 @@ class IDSWDataSetLoader2(Dataset):
         except Exception as e:
             print(f"Error occurred: {e}")
 
-        #print("bp  2  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
-
         delta_w = w -img.shape[1]
         delta_h = h-img.shape[0]
 
@@ -677,31 +473,23 @@ class IDSWDataSetLoader2(Dataset):
         half_delta_w = int(np.floor(delta_w/2))
 
         new_x = np.full((h,w,3), av_lum) 
-        #print("bp  3  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
-        #return img
-        
+
         if img.shape[1]%2 ==0: 
             if img.shape[0]%2 == 0: 
                 if half_delta_w == 0:
                     if half_delta_h ==0:
                         new_x[:,:,:] = img # h=72 w=224
-                        #print("bp  4  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
                     else:
                         new_x[half_delta_h:-half_delta_h,:,:] = img
-                        #print("bp  5  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
                 else:
                     new_x[half_delta_h:-half_delta_h,half_delta_w:-half_delta_w,:] = img
-                    #print("bp  6  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
             else:
                 new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-half_delta_w,:] = img
-                #print("bp  7  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
         else:
             if img.shape[0]%2 == 0:
                 new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
-                #print("bp  8  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
             else:
                 new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
-                #print("bp  9  Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
         return new_x
 
     def label_oh_tf(self, lab):	#device,
@@ -711,19 +499,15 @@ class IDSWDataSetLoader2(Dataset):
         label = torch.tensor(one_hot)
         label = label.to(torch.float32)
         label= label.to(self.device)
-        #label = label.to(device) #
         return label
         
     def colour_size_tense(self,image, vg =False):
         im = cv2.imread(image)
-        #print(type(im), im.shape)
         im = cv2.resize(im, (self.res[0], self.res[1]))
         if self.pad > 0: 
             im = self.padding(img=im, pad_size=self.pad)
         if vg:
             im = self.blank_padding(im, self.av_lum, (224,224)) 
-            #print('vgg registered')
-            #print("cst ",im.shape)
 
         im = im/255 #norm
         im = self.to_tensor(im) 
@@ -733,74 +517,18 @@ class IDSWDataSetLoader2(Dataset):
         # what object to return
         size= self.res
         pad = self.pad
-        #print("_getitem_ idx   ",idx)
         if self.model_name == 'vgg16' or self.model_name=='vgg':
-            #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
-            #print('vgg registered')
-            tense = self.colour_size_tense(self.img_path[idx], vg=True) #[29, 9], 15, 5, [8,3]
-            #print("_getitem_ ",tense.shape)
+            tense = self.colour_size_tense(self.img_path[idx], vg=True) 
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
-            #print('7c and small size registered')
             tense = self.colour_size_tense(self.img_path[idx], vg=True)
         elif (self.model_name == '6c3l' and self.res == [15, 5]) or (self.model_name == '6c3l' and size ==[8, 3]): #and size == [29, 9]) or (self.model_name == '6c3l'
-            #print('7c and small size registered')
             tense = self.colour_size_tense(self.img_path[idx], vg=True)
         else:
-            #print('coloursizetense as norm registered')
-            tense = self.colour_size_tense(self.img_path[idx])
-        #plt.imshow()
-        
+            tense = self.colour_size_tense(self.img_path[idx])        
         label = self.label_oh_tf(self.labels[idx])
         return tense, label
 
-
-
-    
-def save2csv(nested_dict, file_name, save_location:str):
-    columns = list(nested_dict.keys())
-    path = os.path.join(save_location, file_name +".csv")
-    try:
-        with open(path, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=columns)
-            # using dictwriter
-            # using writeheader function
-            if f.tell() == 0:
-                writer.writeheader()
-            writer.writerow(nested_dict)
-            f.close()
-    except IOError as e:
-        print("I/O error({0}): {1}".format(e.errno, e.strerror))
-    except ValueError:
-              print("could not convert to string")
-    except:
-              print("unexpected error: ", sys.exc_info()[0])
-        
-
-def save2json(nested_dict, file_name, save_location:str):
-    json_obj = json.dumps(nested_dict, indent=4)
-    print(json_obj)
-    path = os.path.join(save_location, file_name+".json")
-    #print(path)
-    with open(path, 'w') as f:
-        f.write(json_obj)
-        
-
-def read_in_json(file_path, file_name):
-    path = os.path.join(file_path, 'file_name')
-    try:
-        with open(path, 'r') as f:
-            #obj = f.read()
-            dj = json.load(f, object_pairs_hook= collections.OrderedDict) #obj, 
-            print(dj)
-    except Exception as e:
-        print("Error decoding Json")
-        print(e)
-    
-
-
-
 class IDSWDataSetLoader7(Dataset):
-    
     def __init__(self, img_path, labels, av_lum, transform=None, res = (452, 144), vgg=False): 
         super(Dataset, self).__init__()
         self.img_path = img_path
@@ -824,8 +552,6 @@ class IDSWDataSetLoader7(Dataset):
         try:
             if img.shape[0] > output_height:
                 img = cv2.resize(img, (output_height, img.shape[1]), interpolation = cv2.INTER_NEAREST) # this might be the issue
-                
-    
             if img.shape[1] > output_width:
                 img = cv2.resize(img, (img.shape[0], output_width), interpolation = cv2.INTER_NEAREST)
     
@@ -840,7 +566,6 @@ class IDSWDataSetLoader7(Dataset):
     
         half_delta_height = int(np.floor(delta_height/2))
         half_delta_width = int(np.floor(delta_width/2))
-
 
         if isinstance(delta_height/2, int):
             half_delta_height1, half_delta_height2 = half_delta_height, half_delta_height
@@ -884,16 +609,12 @@ class IDSWDataSetLoader7(Dataset):
             pil_res2.paste(pil_im, (h_delta_width1, h_delta_height1, -h_delta_width2, -h_delta_height2))
             ## at this point, the image looks good
             # convert the PIL image to a tensor
-            
             tans_img = transform(pil_res2)
         else:
             tans_img = Image.fromarray(img, mode="RGB")
             tans_img = transform(tans_img)
-        
         tans_img = tans_img/255
-       
         label = self.Label_oh_tf()({"image": img, "label": label})
-       
         return tans_img, label
 
     class PrintShape(object):
@@ -907,7 +628,7 @@ class IDSWDataSetLoader7(Dataset):
             image, lab = sample['image'], sample['label']
             image = F.normalize(image)
     
-            return image, label
+            return image, lab #
     
     class Label_oh_tf(object):	#device,
         def __call__(self, sample):
@@ -920,7 +641,6 @@ class IDSWDataSetLoader7(Dataset):
             one_hot[lab] = 1
             label = torch.tensor(one_hot)
             label = label.to(torch.float32)
-    
             return image, label
     
     
