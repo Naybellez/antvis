@@ -60,6 +60,34 @@ def label_oh_tf(lab, num_classes):	#device,
 	#label = label.to(device) #
 	return label
 
+def choose_model(model_name, lin_lay, dropout):
+    if model_name == '4c3l':
+        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '3c2l':
+        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
+    elif model_name == '2c2l':
+        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '7c3l':
+        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == 'vgg16':
+        from torchvision.models import vgg16
+        model_vgg16 = vgg16()
+        vgg_classifier = model_vgg16.classifier
+        vgg_classifier.pop(6)
+        vgg_mod = nn.Sequential(
+            model_vgg16.features,
+            nn.Flatten(),
+            vgg_classifier,
+            nn.Linear(4096,11), # cheanging the output layer
+            nn.Softmax(dim=0),  
+            )
+                
+        return vgg_mod
+    else:
+        print('Model Name Not Recognised')
+
+
+
 
 # 	IMAGE DATA FUNCTIONS
 
@@ -217,8 +245,9 @@ class  ImageProcessor():
 
     # tenor functions
     def tensoring(self, img):
+        img = img/255
         tense = torch.tensor(img, dtype=torch.float32)
-        tense = F.normalize(tense)
+        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -284,16 +313,22 @@ class  ImageProcessor():
         #print(im.shape)
         return im
 
-    def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
-        if type(img) == torch.Tensor:
+    def trans_to_img(self, img, scale):
+        if isinstance(img, torch.Tensor):  #type(img) == torch.Tensor:
             img = img.squeeze()
             img = img.permute(1,2,0)
             img=np.array(img.cpu())*scale
 
-        elif type(img) == np.ndarray:
+        elif isinstance(img, np.ndarray): # type(img) == np.ndarray:
             img = img*scale
-        elif type(img) == str:
-            cv2.imread(img)
+        elif isinstance(img, str): # type(img) == str:
+            #print("here 1")
+            img = cv2.imread(img)
+            #print("here 2")
+        return img
+
+    def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
+        img = self.trans_to_img(img, scale)
         if save_dict != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
@@ -416,7 +451,7 @@ class IDSWDataSetLoader(Dataset):
     # tenor functions
     def tensoring(self, img):
         tense = torch.tensor(img, dtype=torch.float32)
-        tense = F.normalize(tense)
+        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -485,7 +520,7 @@ class IDSWDataSetLoader2(Dataset):
     # tenor functions
     def tensoring(self, img):
         tense = torch.tensor(img, dtype=torch.float32)
-        tense = F.normalize(tense)
+        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -572,6 +607,7 @@ class IDSWDataSetLoader2(Dataset):
         
     def colour_size_tense(self,image, vg =False):
         im = cv2.imread(image)
+        #print(type(im), im.shape)
         im = cv2.resize(im, (self.res[0], self.res[1]))
         if self.pad > 0: 
             im = self.padding(img=im, pad_size=self.pad)
@@ -589,7 +625,7 @@ class IDSWDataSetLoader2(Dataset):
         size= self.res
         pad = self.pad
         #print("_getitem_ idx   ",idx)
-        if self.model_name == 'vgg16':
+        if self.model_name == 'vgg16' or self.model_name=='vgg':
             #if col_dict['size'][0] >= 224 or col_dict['size'][1] >= 224: 
             #print('vgg registered')
             tense = self.colour_size_tense(self.img_path[idx], vg=True) #[29, 9], 15, 5, [8,3]
@@ -651,56 +687,147 @@ def read_in_json(file_path, file_name):
         print("Error decoding Json")
         print(e)
     
-#prepro = ImageProcessor(device)
-#self.x_train = prepro.colour_size_tense(x_train, col_dict['colour'], col_dict['size'], col_dict['pad'])
-#self.x_val = prepro.colour_size_tense(x_val, col_dict['colour'], col_dict['size'], col_dict['pad'])
-#self.x_test = prepro.colour_size_tense(x_test , col_dict['colour'], col_dict['size'], col_dict['pad'])
-
-#self.y = label_oh_tf(11)
-"""train_loader = DataLoader(
-	list(zip(self.x_train, self.y_train)),
-	shuffle=True,
-	batch_size=16
-	)
-val_loader = DataLoader(
-	list(zip(self.x_val, self.y_val)),
-	shuffle=True,
-	batch_size=16
-	)
-test_loader = DataLoader(
-	list(zip(self.x_test, self.y_test)),
-	shuffle=True,
-	batch_size=16
-	)
-return train_loader, test_loader, val_loader"""
 
 
 
-"""		def _import_imagedata(self, file_path): 
-# import image data from dir
-images = []
-labels = []
+class IDSWDataSetLoader7(Dataset):
+    
+    def __init__(self, img_path, labels, av_lum, transform=None, res = (452, 144), vgg=False): 
+        super(Dataset, self).__init__()
+        self.img_path = img_path
+        self.labels = labels
+        self.av_lum = av_lum
+        self.transform= transform
+        self.res = res
+        self.vgg = vgg
+        
+    def __len__(self):
+        # length of dataset
+        return len(self.labels)
+        pass
 
-for file in os.listdir(file_path):
-	if file[0:4] == 'IDSW':
-		j = file_path+file
-		i=int(file[5:7]) -1
-		i = str(i)
-		labels.append(i)
-		images.append(j)
-label_arr =np.array(labels)
-image_arr = np.array(images)
-return image_arr, label_arr
+    def get_padding(self, img,  final_size=(224, 224)): 
+        import cv2
+        import numpy as np
+        output_height = final_size[0]
+        output_width = final_size[1]
+    
+        try:
+            if img.shape[0] > output_height:
+                img = cv2.resize(img, (output_height, img.shape[1]), interpolation = cv2.INTER_NEAREST) # this might be the issue
+                
+    
+            if img.shape[1] > output_width:
+                img = cv2.resize(img, (img.shape[0], output_width), interpolation = cv2.INTER_NEAREST)
+    
+        except Exception as e:
+            print(f"Image Resizing Error Occurred: {e}")
+    
+        image_height = img.shape[0]
+        image_width = img.shape[1]
+    
+        delta_width = output_width - image_width
+        delta_height = output_height - image_height
+    
+        half_delta_height = int(np.floor(delta_height/2))
+        half_delta_width = int(np.floor(delta_width/2))
 
-def get_data(self, file_path):
-# split data into sets
-x_arr, y_arr = self._import_imagedata(file_path)
-self.n_samples = len(x_arr) # get len of whole dataset
 
-random_seed = random.seed(3)
+        if isinstance(delta_height/2, int):
+            half_delta_height1, half_delta_height2 = half_delta_height, half_delta_height
+        else:
+            half_delta_width1, half_delta_width2 = half_delta_width, (half_delta_width+1)
+        if isinstance(delta_width/2, int):
+            half_delta_height1, half_delta_height2 = half_delta_height, half_delta_height
+        else:
+            half_delta_height1, half_delta_height2 = half_delta_height, (half_delta_height+1)
+        
+        return half_delta_height1, half_delta_height2, half_delta_width1, half_delta_width2
+    
+    def __getitem__(self, idx):
+        import cv2
+        from PIL import Image
+        from torchvision import transforms
+       # read in image with cv2 so that padding calculations can occur (array)
+        img = cv2.imread(self.img_path[idx])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-x_train, x_test, y_train, y_test = train_test_split(x_arr, y_arr, test_size=0.3, random_state=random_seed)
-x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size =0.1, random_state=random_seed, shuffle=True)
+        label = self.labels[idx]
+        # resize
+        new_lum = int(round(self.av_lum*255))
+        yaw_padded_img, yaw_padded_label = self.Yaw_padding(new_lum)({"image": img, "label": label})
+        img = cv2.resize(yaw_padded_img, (self.res[0], self.res[1]))
 
-return x_train, y_train, x_val, y_val, x_test, y_test
-"""
+
+        transform = transforms.Compose([
+                transforms.PILToTensor()
+            ])
+            
+        if self.vgg==True:
+            
+            
+            h_delta_height1, h_delta_height2, h_delta_width1, h_delta_width2 = self.get_padding(img)
+            print("here are the padding values: ",h_delta_width1, h_delta_height1, h_delta_width2, h_delta_height2)
+            pil_im = Image.fromarray(img, mode="RGB")
+            # create new image with set size coloured with average luminance
+            pil_res2 = Image.new(pil_im.mode, (224, 224), (new_lum, new_lum, new_lum))  #(int(av_lum), int(av_lum), int(av_lum)
+            # paste the resized image (from array) onto the grey padded background image
+            pil_res2.paste(pil_im, (h_delta_width1, h_delta_height1, -h_delta_width2, -h_delta_height2))
+            ## at this point, the image looks good
+            # convert the PIL image to a tensor
+            
+            tans_img = transform(pil_res2)
+        else:
+            tans_img = Image.fromarray(img, mode="RGB")
+            tans_img = transform(tans_img)
+        
+        tans_img = tans_img/255
+       
+        label = self.Label_oh_tf()({"image": img, "label": label})
+       
+        return tans_img, label
+
+    class PrintShape(object):
+        def __call__(self, sample):
+            image, lab = sample['image'], sample['label']
+            return image.shape
+    
+    class Permute_im(object): 
+        def __call__(self, sample):
+            
+            image, lab = sample['image'], sample['label']
+            image = F.normalize(image)
+    
+            return image, label
+    
+    class Label_oh_tf(object):	#device,
+        def __call__(self, sample):
+            import numpy as np
+            import torch
+            image, lab = sample['image'], sample['label'] 
+            one_hot = np.zeros(11)
+    
+            lab = int(lab)
+            one_hot[lab] = 1
+            label = torch.tensor(one_hot)
+            label = label.to(torch.float32)
+    
+            return image, label
+    
+    
+    class Yaw_padding(object):
+        import numpy as np
+        def __init__(self, av_lum):
+            self.av_lum=av_lum
+        def __call__(self, sample, pad_size=3):
+            img, lab = sample['image'], sample['label']
+            left_x = img[:,:pad_size,:] # h, w, c
+            right_x = img[:,-pad_size:,:]
+            y = img.shape[0]
+            x = img.shape[1]+(pad_size*2)
+            new_x = np.full((y, x, 3),self.av_lum, dtype=np.uint8) # h w c
+            new_x[:,:pad_size,:] = right_x
+            new_x[:,pad_size:-pad_size,:] = img
+            new_x[:,-pad_size:,:] = left_x
+    
+            return  new_x, lab
