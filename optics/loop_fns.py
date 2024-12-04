@@ -19,7 +19,10 @@ from torch.nn import functional
 
 from tqdm import tqdm
 
+import sys
+sys.path.append('../.')
 from functions import ImageProcessor,label_oh_tf
+from modelManagment import choose_scheduler
 #import wandb
 #
 
@@ -197,11 +200,12 @@ def test_loop_og(model, X, Y, loss_fn, device, col_dict,title, num_classes):
 
 
 def loop_batch(model, data, loss_fn, batch_size, sample,random_value,epoch,loop_run_name, save_dict, device, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
+    
     model = model
     total_samples = len(data)
     if optimizer: # need a choose scheduler function!
         print("Optimizer present: ",optimizer)
-        scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, threshold=10) # lr_scheduler.ExponentialLR(optimizer, gamma=scheduler_value) 
+        scheduler = choose_scheduler(save_dict, optimizer)
     if train:
         model.train()
     else:
@@ -225,9 +229,14 @@ def loop_batch(model, data, loss_fn, batch_size, sample,random_value,epoch,loop_
         
         for i in range(len(y_batch)-1):
             if y_batch[i].argmax() == prediction[i].argmax():
+                #print("true label ",y_batch[i].argmax().to('cpu').item())
+                #print("predicted ", prediction[i].argmax().to('cpu').item())
                 num_correct +=1
-            [predict_list.append(pred.argmax().to('cpu')) for pred in prediction]#.argmax())
-            [labels.append(y.argmax().to('cpu')) for y in y_batch]
+            #[[predict_list.append(pred.argmax().to('cpu').item()) for pred in preds] for preds in prediction]#.argmax())
+            [predict_list.append(pred.argmax().to('cpu').item()) for pred in prediction]
+            #[[labels.append(y.argmax().to('cpu').item()) for y in  ys] for ys in y_batch] #041224
+            [labels.append(y.argmax().to('cpu').item()) for y in y_batch]
+            #print(labels)
         total_count+= batch_size
         current_loss += loss.item()
     if scheduler:
@@ -261,8 +270,8 @@ def test_loop_batch(model,data, loss_fn, batch_size, device):
                 #print(len(label), label[0].argmax(), len(label)-1)
                 if label[i].argmax() == prediction[i].argmax():
                     num_correct +=1
-            [predict_list.append(pred.argmax().to('cpu')) for pred in prediction]
-            [label_list.append(lab.argmax().to('cpu')) for lab in label]
+            [predict_list.append(pred.argmax().to('cpu').item()) for pred in prediction]
+            [label_list.append(lab.argmax().to('cpu').item()) for lab in label]
             total_count += batch_size
             #correct +=(prediction.argmax()==label.argmax()).sum().item()
         acc = num_correct/total_count
@@ -300,7 +309,8 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         #!nvidia-smi
         
         t_loss_list.append(t_loss)
-        [t_predict_list.append(pred.argmax()) for pred in train_prediction]
+        #[t_predict_list.append(pred.argmax()) for pred in train_prediction]
+        t_predict_list.append(train_prediction)
         wandb.log({'t_loss':t_loss})
     
         train_acc = (t_correct/(len(train)*batch_size)*100) ###
@@ -313,7 +323,8 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         
         v_loss, val_prediction, v_label_list, val_correct= loop_batch(model, val, loss_fn, batch_size,sample,random_value,epoch,loop_run_name, save_dict, device, optimizer =None, scheduler= None, train =False)
         v_loss_list.append(v_loss)
-        [v_predict_list.append(pred) for pred in val_prediction]
+        #[v_predict_list.append(pred) for pred in val_prediction]
+        v_predict_list.append(val_prediction)
         wandb.log({'v_loss':v_loss})
         
         val_acc = (val_correct/(len(val)*batch_size)*100)
