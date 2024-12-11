@@ -334,7 +334,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     
         total_epochs += 1
 
-        if epoch %25==0 and epoch !=0 and epoch != int(save_dict['start_epoch']):
+        if epoch %50==0 and epoch !=0 and epoch != int(save_dict['start_epoch']):
             from plotting import learning_curve, accuracy_curve
             #checkpoint = copy.deepcopy(model)
             checkpoint_id = f"{save_dict['model']}_{save_dict['optimiser']}_{save_dict['sched']}_{epoch}E_{save_dict['res']}_seed{save_dict['seed']}"
