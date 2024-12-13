@@ -201,7 +201,7 @@ def test_loop_og(model, X, Y, loss_fn, device, col_dict,title, num_classes):
 
 def loop_batch(model, data, loss_fn, batch_size, sample,random_value,epoch,loop_run_name, save_dict, device, optimizer =None, scheduler= None, train =True):	# Train and Val loops. Default is train
     
-    model = model
+    model = model #.
     total_samples = len(data)
     if optimizer: # need a choose scheduler function!
         print("Optimizer present: ",optimizer)
@@ -215,12 +215,16 @@ def loop_batch(model, data, loss_fn, batch_size, sample,random_value,epoch,loop_
     num_correct = 0
     current_loss = 0
     labels =[]
-
+    #print("loopBatch pre loop- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
     for i, batch in enumerate(data,0):
 
         x_batch, y_batch = batch
+        #print("x and y from batch - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         prediction = model.forward(x_batch)
+        #print("prediction made - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         loss = loss_fn(prediction, y_batch)
+        #print("loss calculated- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
+        
 
         if train:
             optimizer.zero_grad()
@@ -229,23 +233,23 @@ def loop_batch(model, data, loss_fn, batch_size, sample,random_value,epoch,loop_
         
         for i in range(len(y_batch)-1):
             if y_batch[i].argmax() == prediction[i].argmax():
-                #print("true label ",y_batch[i].argmax().to('cpu').item())
-                #print("predicted ", prediction[i].argmax().to('cpu').item())
                 num_correct +=1
-            #[[predict_list.append(pred.argmax().to('cpu').item()) for pred in preds] for preds in prediction]#.argmax())
-            [predict_list.append(pred.argmax().to('cpu').item()) for pred in prediction]
-            #[[labels.append(y.argmax().to('cpu').item()) for y in  ys] for ys in y_batch] #041224
-            [labels.append(y.argmax().to('cpu').item()) for y in y_batch]
-            #print(labels)
+                
+
+        [predict_list.append(pred.argmax().item()) for pred in prediction]
+        [labels.append(y.argmax().item()) for y in y_batch]
+
         total_count+= batch_size
         current_loss += loss.item()
-    if scheduler:
-        scheduler.step(loss)
-    
+
+        #print("loopBatch end of loop Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
+        if scheduler:
+            scheduler.step(loss)
+
     if train:
-        return current_loss, predict_list, y_batch, num_correct, model, optimizer #, lr_ls
+        return current_loss, predict_list, labels, num_correct, model, optimizer #, lr_ls
     else:
-        return current_loss, predict_list, y_batch, num_correct
+        return current_loss, predict_list, labels, num_correct # changed y_batch to labels in return 
 
 
 
@@ -299,6 +303,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     sample = False
     
     total_epochs = 0
+    print("Before Epochs of training - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
     for epoch in tqdm(range(save_dict['start_epoch'],epochs)):
 
         random_value = random.randrange(0,batch_size)
@@ -333,7 +338,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         wandb.log({'val_acc':val_acc})
     
         total_epochs += 1
-
+        print(f"After Epoch {total_epochs} - Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
         if epoch %50==0 and epoch !=0 and epoch != int(save_dict['start_epoch']):
             from plotting import learning_curve, accuracy_curve
             #checkpoint = copy.deepcopy(model)
