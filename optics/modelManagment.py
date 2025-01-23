@@ -62,6 +62,35 @@ def choose_model2(model_name, lin_lay, dropout):
         print('Model Name Not Recognised')
 
 
+def choose_model_out10(model_name, lin_lay, dropout): 
+    # this version uses an imported vgg16 model [No Weights] with a custom output linear layer. 
+    if model_name == '4c3l':
+        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '3c2l':
+        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
+    elif model_name == '2c2l':
+        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == '7c3l':
+        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+    elif model_name == 'vgg16':
+        #self.flatten = nn.Flatten()
+        model_vgg16 = vgg16()
+        vgg_feats = model_vgg16.features
+        vgg_classifier = model_vgg16.classifier
+        vgg_classifier.pop(6)
+
+        vgg = nn.Sequential(
+            vgg_feats,
+            nn.Flatten(),
+            vgg_classifier,
+            nn.Linear(4096,10), # cheanging the output layer
+            nn.Softmax(dim=0),  
+            )
+        return vgg
+    else:
+        print('Model Name Not Recognised')
+
+
 def choose_model1(model_name, lin_lay, dropout):
  # this version creates vgg16 layer by layer, NOT an imported model
     if model_name == '4c3l':

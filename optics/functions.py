@@ -4,14 +4,17 @@
 # Imports
 import os
 import cv2
+from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+import random
+
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
-import random
-from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
+from sklearn.model_selection import train_test_split
+
 import pprint
 import csv
 from datetime import date
@@ -660,3 +663,393 @@ class IDSWDataSetLoader7(Dataset):
             new_x[:,-pad_size:,:] = left_x
     
             return  new_x, lab
+
+
+
+class IDSWDataSetLoader8(Dataset):
+    def __init__(self, img_path, labels, av_lum, transform=None, res = [452, 144], vgg=False, skyblock=False, brightness=False): 
+        super(Dataset, self).__init__()
+        self.img_path = img_path
+        self.labels = labels
+        self.av_lum = av_lum
+        self.transform= transform
+        self.res = res
+        self.vgg = vgg
+        self.skyblock = skyblock
+        self.brightness = brightness
+        
+    def __len__(self):
+        # length of dataset
+        return len(self.labels)
+        pass
+
+    def get_padding(self, img,  final_size=(224, 224)): 
+        import cv2
+        import numpy as np
+        output_height = final_size[0]
+        output_width = final_size[1]
+    
+        try:
+            if img.shape[0] > output_height:
+                img = cv2.resize(img, (output_height, img.shape[1]), interpolation = cv2.INTER_NEAREST) # this might be the issue
+            if img.shape[1] > output_width:
+                img = cv2.resize(img, (img.shape[0], output_width), interpolation = cv2.INTER_NEAREST)
+    
+        except Exception as e:
+            print(f"Image Resizing Error Occurred: {e}")
+    
+        image_height = img.shape[0]
+        image_width = img.shape[1]
+    
+        delta_width = output_width - image_width
+        delta_height = output_height - image_height
+    
+        half_delta_height = int(np.floor(delta_height/2))
+        half_delta_width = int(np.floor(delta_width/2))
+
+        if isinstance(delta_height/2, int):
+            half_delta_height1, half_delta_height2 = half_delta_height, half_delta_height
+        else:
+            half_delta_width1, half_delta_width2 = half_delta_width, (half_delta_width+1)
+        if isinstance(delta_width/2, int):
+            half_delta_height1, half_delta_height2 = half_delta_height, half_delta_height
+        else:
+            half_delta_height1, half_delta_height2 = half_delta_height, (half_delta_height+1)
+        
+        return half_delta_height1, half_delta_height2, half_delta_width1, half_delta_width2
+
+    def aug_img_h(self, im1):
+        #print(im1.shape)
+        image_height = im1.shape[0]
+        image_width = im1.shape[1]
+        half_height = int(np.floor(image_height/2))
+        half_width = int(np.floor(image_width/2))
+        
+        max_h = half_height#int(np.floor(half_height+(half_height/4)))
+        #print(" h h: ",half_height," h w: ",half_width)
+        
+        import random
+        def getRandSize(half_height, half_width):
+            rect_height = random.randint(int(image_height*0.5), abs(half_height))
+            rect_width = random.randint(int(image_width*0.0222), abs(half_width))
+            return rect_height, rect_width
+        
+        
+        
+        rect_height1, rect_width1 = getRandSize(abs(max_h), abs(half_width)) # image_width
+        rect_height2, rect_width2 = getRandSize(abs(max_h), abs(half_width)) # image_width
+        rect_height3, rect_width3 = getRandSize(abs(max_h), abs(half_width))
+        rect_height4, rect_width4 = getRandSize(abs(max_h), abs(half_width))
+        
+        #print("rh: ", rect_height1, " rw: ", rect_width1)
+        block = Image.new("RGB",(rect_width1, rect_height1), (255,155,200))
+        block2 = Image.new("RGB", (rect_width2, rect_height2), (155, 255, 200))
+        block3 = Image.new("RGB", (rect_width3, rect_height3), (60, 145, 100))
+        block4 = Image.new("RGB", (rect_width4, rect_height4), (240, 140, 20))
+        
+        #print(block.size)
+        
+        #plt.imshow(block3)
+        #plt.show()
+        
+        im2 = Image.fromarray(im1,mode="RGB")#)block.mode
+        #plt.imshow(im2)
+        #plt.show()
+        
+        rand_w = random.randint(0, np.floor(image_width/2))
+        rand_w2 = random.randint(-rand_w, abs((np.floor(image_width/2)) -rand_w))
+        rand_w3 = random.randint(0, np.floor(image_width/2))
+        rand_w4 = random.randint(0, np.floor(image_width/2))
+        def rand_upperLim():
+            val = random.randint(0, np.floor(half_height/2)) #20
+            return val
+        im2.paste(block, (rand_w, rand_upperLim())) # w, h
+        im2.paste(block2, (rand_w2, rand_upperLim()))
+        im2.paste(block3, (rand_w3,rand_upperLim()))
+        im2.paste(block4, (rand_w4, rand_upperLim()))
+        im3 = np.array(im2)
+        return im3
+    
+    def __getitem__(self, idx):
+        import cv2
+        from PIL import Image
+        from torchvision import transforms
+       # read in image with cv2 so that padding calculations can occur (array)
+        img = cv2.imread(self.img_path[idx])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        label = self.labels[idx]
+        #print("start of get_item",label)
+        # resize
+        new_lum = int(round(self.av_lum*255))
+        yaw_padded_img, yaw_padded_label = self.Yaw_padding(new_lum)({"image": img, "label": label})
+        print("yaw padded img size: ",yaw_padded_img.size, yaw_padded_img.shape, type(yaw_padded_img))#, yaw_padded_img
+        img = cv2.resize(yaw_padded_img, (self.res[0], self.res[1]))
+        print("resized im size: ", img.size, img.shape)
+        if self.skyblock:
+            img = self.aug_img_h(img) ## this is where skyline blocker is called.
+        if self.brightness:
+            pass
+        print("post augmentation image size: ", img.size, img.shape)
+        print("--------------------------------------------")
+
+
+        transform = transforms.Compose([
+                transforms.PILToTensor()
+            ])
+            
+        if self.vgg==True:
+            h_delta_height1, h_delta_height2, h_delta_width1, h_delta_width2 = self.get_padding(img)
+            #print("here are the padding values: ",h_delta_width1, h_delta_height1, h_delta_width2, h_delta_height2)
+            pil_im = Image.fromarray(img, mode="RGB")
+            # create new image with set size coloured with average luminance
+            pil_res2 = Image.new(pil_im.mode, (224, 224), (new_lum, new_lum, new_lum))  #(int(av_lum), int(av_lum), int(av_lum)
+            # paste the resized image (from array) onto the grey padded background image
+            pil_res2.paste(pil_im, (h_delta_width1, h_delta_height1, -h_delta_width2, -h_delta_height2))
+            ## at this point, the image looks good
+            # convert the PIL image to a tensor
+            tans_img = transform(pil_res2)
+        else:
+            tans_img = Image.fromarray(img, mode="RGB")
+            tans_img = transform(tans_img)
+            print("post transform img size: ", tans_img.size, tans_img.shape)
+        tans_img = tans_img/255
+        #print("just before label_oh_tf", label)
+        Image_and_label = self.Label_oh_tf()({"image": tans_img, "label": label})
+        #print("in get_item, label:", type(Image_and_label), Image_and_label)
+        print("post processing image size: ", tans_img.size, tans_img.shape)
+        return Image_and_label #tans_img,
+
+    class PrintShape(object):
+        def __call__(self, sample):
+            image, lab = sample['image'], sample['label']
+            return image.shape
+    
+    class Permute_im(object): 
+        def __call__(self, sample):
+            
+            image, lab = sample['image'], sample['label']
+            image = F.normalize(image)
+    
+            return image, lab #
+    
+    class Label_oh_tf(object):	#device,
+        def __call__(self, sample):
+            import numpy as np
+            import torch
+            #print("label_oh_tf init")
+            image, lab = sample['image'], sample['label'] 
+            #print("in label_oh_tf. label:", lab)
+            one_hot = np.zeros(11)
+    
+            lab = int(lab)
+            #print("label_oh_tf. lab post intting", lab)
+            one_hot[lab] = 1
+            #print("label_oh_tf. one hotted:", one_hot)
+            label = torch.tensor(one_hot)
+            #print("as a tensor. lab:", label)
+            label = label.to(torch.float32)
+            #print("end lebel_oh_tf, label:", type(label), label)
+            return image, label
+    
+    
+    class Yaw_padding(object):
+        import numpy as np
+        def __init__(self, av_lum):
+            self.av_lum=av_lum
+        def __call__(self, sample, pad_size=3):
+            img, lab = sample['image'], sample['label']
+            left_x = img[:,:pad_size,:] # h, w, c
+            right_x = img[:,-pad_size:,:]
+            y = img.shape[0]
+            x = img.shape[1]+(pad_size*2)
+            new_x = np.full((y, x, 3),self.av_lum, dtype=np.uint8) # h w c
+            new_x[:,:pad_size,:] = right_x
+            new_x[:,pad_size:-pad_size,:] = img
+            new_x[:,-pad_size:,:] = left_x
+    
+            return  new_x, lab
+
+
+
+class IDSWDataSetLoader9(Dataset):
+    def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False): # transform =True
+        super(Dataset, self).__init__()
+
+        self.device = device
+        #self.col_dict = col_dict
+
+        self.img_path = x
+        self.labels = y
+        self.res = res
+        self.pad = pad
+        self.model_name = model_name
+        self.av_lum =av_lum
+        self.skyblock =skyblock
+        self.b_invert = b_invert
+
+        self.class_map = {"1":0,"2": 1,
+                            "3":2, "4":3,
+                            "5":4, "6": 5,
+                            "7":6, "8":7,
+                            "9":8, "10": 9,
+                            "11":10}
+
+
+    def __len__(self):
+        # length of dataset
+        return len(self.img_path)
+    
+    # tenor functions
+    def tensoring(self, img):
+        tense = torch.tensor(img, dtype=torch.float32)
+        #tense = F.normalize(tense)
+        tense = tense.permute(2, 0, 1)
+        return tense
+
+    def to_tensor(self, img):
+        im_chan = img.shape[2]
+        imgY, imgX = img.shape[0], img.shape[1]
+        tensor = self.tensoring(img)
+        tensor = tensor.reshape(im_chan, imgY, imgX)
+        #print(' \n to tensor SELF.DEVICE: \n ', self.device)
+        tensor = tensor.to(self.device)
+        return tensor
+        
+    def padding(self, img, pad_size):
+        left_x = img[:,:pad_size,:] # h, w, c
+        right_x = img[:,-pad_size:,:]
+        y = img.shape[0]
+        x = img.shape[1]+(pad_size*2)
+        new_x = np.full((y, x, 3),255) # h w c
+        new_x[:,:pad_size,:] = right_x
+        new_x[:,pad_size:-pad_size,:] = img
+        new_x[:,-pad_size:,:] = left_x
+        return new_x
+        
+    def blank_padding(self, img, av_lum, final_size:tuple): 
+        w = final_size[1]
+        h = final_size[0]
+
+        try:
+            if img.shape[0] > h:
+                img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
+            if img.shape[1] > w:
+                img =cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
+            #print("bp ",img.shape)
+        except Exception as e:
+            print(f"Error occurred: {e}")
+
+        delta_w = w -img.shape[1]
+        delta_h = h-img.shape[0]
+
+        half_delta_h = int(np.floor(delta_h/2))
+        half_delta_w = int(np.floor(delta_w/2))
+
+        new_x = np.full((h,w,3), av_lum) 
+
+        if img.shape[1]%2 ==0: 
+            if img.shape[0]%2 == 0: 
+                if half_delta_w == 0:
+                    if half_delta_h ==0:
+                        new_x[:,:,:] = img # h=72 w=224
+                    else:
+                        new_x[half_delta_h:-half_delta_h,:,:] = img
+                else:
+                    new_x[half_delta_h:-half_delta_h,half_delta_w:-half_delta_w,:] = img
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-half_delta_w,:] = img
+        else:
+            if img.shape[0]%2 == 0:
+                new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
+            else:
+                new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
+        return new_x
+
+    def aug_img_h(self, im1):
+        #print(im1.shape)
+        image_height = im1.shape[0]
+        image_width = im1.shape[1]
+        half_height = int(np.floor(image_height/2))
+        half_width = int(np.floor(image_width/2))
+        
+        max_h = half_height
+        
+        import random
+        def getRandSize(half_height, half_width):
+            rect_height = random.randint(int(image_height*0.5), abs(half_height))
+            rect_width = random.randint(int(image_width*0.0222), abs(half_width))
+            return rect_height, rect_width
+        
+        rect_height1, rect_width1 = getRandSize(abs(max_h), abs(half_width)) # image_width
+        rect_height2, rect_width2 = getRandSize(abs(max_h), abs(half_width)) # image_width
+        rect_height3, rect_width3 = getRandSize(abs(max_h), abs(half_width))
+        rect_height4, rect_width4 = getRandSize(abs(max_h), abs(half_width))
+        
+        #print("rh: ", rect_height1, " rw: ", rect_width1)
+        block = Image.new("RGB",(rect_width1, rect_height1), (255,155,200))
+        block2 = Image.new("RGB", (rect_width2, rect_height2), (155, 255, 200))
+        block3 = Image.new("RGB", (rect_width3, rect_height3), (60, 145, 100))
+        block4 = Image.new("RGB", (rect_width4, rect_height4), (240, 140, 20))
+        
+        im2 = Image.fromarray(im1,mode="RGB")#)block.mode
+        
+        rand_w = random.randint(0, np.floor(image_width/2))
+        rand_w2 = random.randint(-rand_w, abs((np.floor(image_width/2)) -rand_w))
+        rand_w3 = random.randint(0, np.floor(image_width/2))
+        rand_w4 = random.randint(0, np.floor(image_width/2))
+        def rand_upperLim():
+            val = random.randint(0, np.floor(half_height/2)) #20
+            return val
+        im2.paste(block, (rand_w, rand_upperLim())) # w, h
+        im2.paste(block2, (rand_w2, rand_upperLim()))
+        im2.paste(block3, (rand_w3,rand_upperLim()))
+        im2.paste(block4, (rand_w4, rand_upperLim()))
+        im3 = np.array(im2)
+        return im3
+        
+    def invert_brightness(self, img):
+        new_img = np.array([(255-pix) for pix in img])
+        #img2 = Image.fromarray(new_img, mode="RGB")
+        return new_img
+    
+
+    def label_oh_tf(self, lab):	#device,
+        one_hot = np.zeros(11)
+        lab = int(lab)
+        one_hot[lab] = 1
+        label = torch.tensor(one_hot)
+        label = label.to(torch.float32)
+        label= label.to(self.device)
+        return label
+        
+    def colour_size_tense(self,image, vg =False):
+        im = cv2.imread(image)
+        im = cv2.resize(im, (self.res[0], self.res[1]))
+        if self.pad > 0: 
+            im = self.padding(img=im, pad_size=self.pad)
+        if vg:
+            im = self.blank_padding(im, self.av_lum, (224,224)) 
+        if self.skyblock:
+            im = self.aug_img_h(im)
+        if self.b_invert:
+            im = self.invert_brightness(im)
+            
+        im = im/255 #norm
+        im = self.to_tensor(im) 
+        return im
+        
+    def __getitem__(self, idx, transform=False):
+        # what object to return
+        size= self.res
+        pad = self.pad
+        if self.model_name == 'vgg16' or self.model_name=='vgg':
+            tense = self.colour_size_tense(self.img_path[idx], vg=True) 
+        elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
+        elif (self.model_name == '6c3l' and self.res == [15, 5]) or (self.model_name == '6c3l' and size ==[8, 3]): #and size == [29, 9]) or (self.model_name == '6c3l'
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
+        else:
+            tense = self.colour_size_tense(self.img_path[idx])        
+        label = self.label_oh_tf(self.labels[idx])
+        return tense, label

@@ -14,7 +14,7 @@ def check_save_path(save_location):
     return save_location
 
 def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
-    #print("1 p ", predictions[:10], type(predictions))
+    #this wasn't designed to be given a list of batches
     print(len(predictions), len(actual))
     save_location = check_save_path(save_location)
     sns.set()
@@ -26,15 +26,11 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
         predict_list = [int(t.numpy()) for t in predictions]
     else:
         predict_list = predictions
-    
-    #print("3 p ",predict_list[:10], type(predict_list))
-
 
     #print("1  a ", actual[:10], type(actual))
     if type(actual[0])!= int:
         actual = [int(l.argmax()) for l in actual]
     #print("2  a ", actual[:10], type(actual))
-
     actual = np.array(actual)
     #print("3  a ", actual[:10], type(actual))
     predict_list = np.array(predict_list)

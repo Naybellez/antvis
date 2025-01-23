@@ -114,7 +114,8 @@ class BoxData():
                             #print(f"Uploading image    {f}  ...")
                             grph_folder.upload(file_path, file_name=f)
                     else:
-                        print(f"{f} already exists in Box.     Skipping.")
+                        #print(f"{f} already exists in Box.     Skipping.")
+                        pass
                 except Exception as e:
                     print(f"Error uploading {f}: {str(e)}")
                 except Exception as e:
