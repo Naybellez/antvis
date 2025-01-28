@@ -921,7 +921,7 @@ class IDSWDataSetLoader9(Dataset):
         right_x = img[:,-pad_size:,:]
         y = img.shape[0]
         x = img.shape[1]+(pad_size*2)
-        new_x = np.full((y, x, 3),255) # h w c
+        new_x = np.full((y, x, 3),255, dtype=np.uint8) # h w c
         new_x[:,:pad_size,:] = right_x
         new_x[:,pad_size:-pad_size,:] = img
         new_x[:,-pad_size:,:] = left_x
@@ -946,7 +946,7 @@ class IDSWDataSetLoader9(Dataset):
         half_delta_h = int(np.floor(delta_h/2))
         half_delta_w = int(np.floor(delta_w/2))
 
-        new_x = np.full((h,w,3), av_lum) 
+        new_x = np.full((h,w,3), av_lum, dtype=np.uint8) 
 
         if img.shape[1]%2 ==0: 
             if img.shape[0]%2 == 0: 
@@ -974,6 +974,9 @@ class IDSWDataSetLoader9(Dataset):
         half_width = int(np.floor(image_width/2))
         
         max_h = half_height
+        #print("image as enter aug_img_h")
+        #plt.imshow(im1)
+        #plt.show()
         
         import random
         def getRandSize(half_height, half_width):
@@ -991,8 +994,14 @@ class IDSWDataSetLoader9(Dataset):
         block2 = Image.new("RGB", (rect_width2, rect_height2), (155, 255, 200))
         block3 = Image.new("RGB", (rect_width3, rect_height3), (60, 145, 100))
         block4 = Image.new("RGB", (rect_width4, rect_height4), (240, 140, 20))
+
+        #print("image before pil convertion")
+        #plt.imshow(im1)
+        #plt.show()
         
-        im2 = Image.fromarray(im1,mode="RGB")#)block.mode
+        im2 = Image.fromarray(im1,mode="RGB")#)block.mode ,mode="RGB"
+        #print("after pil convertion")
+        #im2.show()
         
         rand_w = random.randint(0, np.floor(image_width/2))
         rand_w2 = random.randint(-rand_w, abs((np.floor(image_width/2)) -rand_w))
@@ -1005,8 +1014,8 @@ class IDSWDataSetLoader9(Dataset):
         im2.paste(block2, (rand_w2, rand_upperLim()))
         im2.paste(block3, (rand_w3,rand_upperLim()))
         im2.paste(block4, (rand_w4, rand_upperLim()))
-        im3 = np.array(im2)
-        return im3
+        
+        return im2
         
     def invert_brightness(self, img):
         new_img = np.array([(255-pix) for pix in img])
@@ -1024,18 +1033,40 @@ class IDSWDataSetLoader9(Dataset):
         return label
         
     def colour_size_tense(self,image, vg =False):
-        im = cv2.imread(image)
+        im = cv2.imread(image) # this needs to be read in as rgb
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
         im = cv2.resize(im, (self.res[0], self.res[1]))
+        #print("image resized")
+        #plt.imshow(im)
+        #plt.show()
         if self.pad > 0: 
             im = self.padding(img=im, pad_size=self.pad)
+            #plt.imshow(im)
+            #print("padding applied")
+            #plt.show()
         if vg:
             im = self.blank_padding(im, self.av_lum, (224,224)) 
+            #plt.imshow(im)
+            #print("blank padding applied")
+            #plt.show()
         if self.skyblock:
             im = self.aug_img_h(im)
+            #im.show()
+            im = np.array(im)
+            #plt.imshow(im)
+            #print("skyblock applied")
+            #plt.show()
         if self.b_invert:
             im = self.invert_brightness(im)
-            
+            #plt.imshow()
+            #print("brightness invert applied")
+            #plt.show()
+        #print("after im processing")
+        #plt.imshow(im)    
+        #plt.show()
         im = im/255 #norm
+        #plt.imshow(im)
+        #plt.show()
         im = self.to_tensor(im) 
         return im
         
