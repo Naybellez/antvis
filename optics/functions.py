@@ -873,7 +873,7 @@ class IDSWDataSetLoader8(Dataset):
 
 
 class IDSWDataSetLoader9(Dataset):
-    def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False): # transform =True
+    def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False, twotone =False): # transform =True
         super(Dataset, self).__init__()
 
         self.device = device
@@ -887,6 +887,7 @@ class IDSWDataSetLoader9(Dataset):
         self.av_lum =av_lum
         self.skyblock =skyblock
         self.b_invert = b_invert
+        self.twotone = twotone
 
         self.class_map = {"1":0,"2": 1,
                             "3":2, "4":3,
@@ -912,7 +913,6 @@ class IDSWDataSetLoader9(Dataset):
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
         tensor = tensor.reshape(im_chan, imgY, imgX)
-        #print(' \n to tensor SELF.DEVICE: \n ', self.device)
         tensor = tensor.to(self.device)
         return tensor
         
@@ -968,8 +968,13 @@ class IDSWDataSetLoader9(Dataset):
 
     def aug_img_h(self, im1):
         #print(im1.shape)
-        image_height = im1.shape[0]
-        image_width = im1.shape[1]
+        if self.vg:
+            image_height = self.res[1]
+            image_width = self.res[0]
+            #print(self.res[0], self.res[1])
+        else:
+            image_height = im1.shape[0]
+            image_width = im1.shape[1]
         half_height = int(np.floor(image_height/2))
         half_width = int(np.floor(image_width/2))
         
@@ -1017,9 +1022,14 @@ class IDSWDataSetLoader9(Dataset):
         
         return im2
         
-    def invert_brightness(self, img):
+    def invert_brightness(self, img): # invert the pixel values
         new_img = np.array([(255-pix) for pix in img])
         #img2 = Image.fromarray(new_img, mode="RGB")
+        return new_img
+        
+    def two_tone(self, img): # makes the images bw in a similar manner to those in prev studies - Graham
+        #img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        new_img = np.where(img<=200, 0, 255)
         return new_img
     
 
@@ -1036,37 +1046,20 @@ class IDSWDataSetLoader9(Dataset):
         im = cv2.imread(image) # this needs to be read in as rgb
         im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
         im = cv2.resize(im, (self.res[0], self.res[1]))
-        #print("image resized")
-        #plt.imshow(im)
-        #plt.show()
+        self.vg = vg
+        # Image Augmentation controlled for by boolean opperators
         if self.pad > 0: 
             im = self.padding(img=im, pad_size=self.pad)
-            #plt.imshow(im)
-            #print("padding applied")
-            #plt.show()
-        if vg:
-            im = self.blank_padding(im, self.av_lum, (224,224)) 
-            #plt.imshow(im)
-            #print("blank padding applied")
-            #plt.show()
         if self.skyblock:
             im = self.aug_img_h(im)
-            #im.show()
             im = np.array(im)
-            #plt.imshow(im)
-            #print("skyblock applied")
-            #plt.show()
         if self.b_invert:
             im = self.invert_brightness(im)
-            #plt.imshow()
-            #print("brightness invert applied")
-            #plt.show()
-        #print("after im processing")
-        #plt.imshow(im)    
-        #plt.show()
+        if self.twotone:
+            im = self.two_tone(im)
+        if vg: # this occurs last so that image augmentions only occur on the image data
+            im = self.blank_padding(im, self.av_lum, (224,224))
         im = im/255 #norm
-        #plt.imshow(im)
-        #plt.show()
         im = self.to_tensor(im) 
         return im
         
