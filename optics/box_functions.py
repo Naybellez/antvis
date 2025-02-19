@@ -77,6 +77,50 @@ class BoxData():
                     print(f"Error uploading {f}: {str(e)}")
                 except Exception as e:
                     print(f"Unexpected error uploading {f}: {str(e)}")
+
+    def upload_folder3(self, pklfolderID, csvfolderID, grphfolderID, jsonfolderID, og_fol:str):
+        # destination folders in box
+        from tqdm import tqdm
+        box_list = []
+        grph_folder = self.client.folder(folder_id=grphfolderID)
+        pkl_folder = self.client.folder(folder_id=pklfolderID)
+        csv_folder = self.client.folder(folder_id=csvfolderID)
+        json_folder = self.client.folder(folder_id=jsonfolderID)
+        
+        folders = [grph_folder, pkl_folder, csv_folder, json_folder]
+        
+        print('collating box files... ')
+        for folder in folders:
+            self.items = folder.get_items()
+            box_list += [item.name for item in self.items]
+            
+        print('Uploading... ')
+        for f in tqdm(os.listdir(og_fol)): # should put a tqm around this
+            file_path = os.path.join(og_fol, f)
+            if os.path.isfile(file_path):
+                try:
+                    if f not in box_list:
+                        file_type = f[-3:]
+                        if file_type == 'pkl':
+                            #print(f"Uploading pkl    {f}  ...")
+                            pkl_folder.upload(file_path, file_name=f)
+                        elif file_type == 'csv':
+                            #print(f"Uploading csv    {f}  ...")
+                            csv_folder.upload(file_path, file_name=f)
+                        elif file_type == 'son':
+                            #print(f"Uploading json    {f}  ...")
+                            json_folder.upload(file_path, file_name=f)
+                        elif file_type.lower() == 'png':
+                            #print(f"Uploading image    {f}  ...")
+                            grph_folder.upload(file_path, file_name=f)
+                    else:
+                        #print(f"{f} already exists in Box.     Skipping.")
+                        pass
+                except Exception as e:
+                    print(f"Error uploading {f}: {str(e)}")
+                except Exception as e:
+                    print(f"Unexpected error uploading {f}: {str(e)}")
+        print("Task Complete!")
                     
     def upload_files(self, folderID, file_path, file):
         to_folder = self.client.folder(folder_id=folderID)
