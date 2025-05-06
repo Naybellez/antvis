@@ -873,7 +873,7 @@ class IDSWDataSetLoader8(Dataset):
 
 
 class IDSWDataSetLoader9(Dataset):
-    def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False, twotone =False): # transform =True
+    def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False, twotone =False, horzflip=False,vertflip=False): # transform =True
         super(Dataset, self).__init__()
 
         self.device = device
@@ -888,6 +888,8 @@ class IDSWDataSetLoader9(Dataset):
         self.skyblock =skyblock
         self.b_invert = b_invert
         self.twotone = twotone
+        self.horzflip = horzflip
+        self.vertflip = vertflip
 
         self.class_map = {"1":0,"2": 1,
                             "3":2, "4":3,
@@ -1031,6 +1033,14 @@ class IDSWDataSetLoader9(Dataset):
         #img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         new_img = np.where(img<=200, 0, 255)
         return new_img
+
+    def flip_horizontal(self, img):
+        new_im =  cv2.flip(img, 1)
+        return new_im
+
+    def flip_vertical(self, img):
+        new_im = cv2.flip(img, 0)
+        return new_im
     
 
     def label_oh_tf(self, lab):	#device,
@@ -1057,6 +1067,10 @@ class IDSWDataSetLoader9(Dataset):
             im = self.invert_brightness(im)
         if self.twotone:
             im = self.two_tone(im)
+        if self.horzflip:
+            im = self.flip_horizontal(im)
+        if self.vertflip:
+            im = self.flip_vertical(im)
         if vg: # this occurs last so that image augmentions only occur on the image data
             im = self.blank_padding(im, self.av_lum, (224,224))
         im = im/255 #norm
