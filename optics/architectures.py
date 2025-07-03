@@ -117,7 +117,7 @@ def eightnnet(in_chan, f_lin_lay, l_lin_lay, ks, dropout):
     class Eightnet(nn.Module):
         # 7 conv layers, 3 linear
         def __init__(self):
-            super(Sixnet, self).__init__()
+            super(Eightnet, self).__init__()
             self.flatten = nn.Flatten()
 
             self.conv_layers = nn.Sequential(  # 1, 2, 144, 452

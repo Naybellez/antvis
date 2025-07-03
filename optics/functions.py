@@ -311,6 +311,16 @@ class  ImageProcessor():
         plt.show()
         return img
 
+    def view2(self, img, scale:int, name:str, save_loc=None):
+        img = self.trans_to_img(img, scale)
+        if save_loc != None:
+            res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            cv2.imwrite(f"{save_loc}_{name}.jpeg", res)
+        plt.imshow(img)
+        plt.axis(False)
+        plt.show()
+        return img
+
 
 
 
@@ -522,6 +532,9 @@ class IDSWDataSetLoader2(Dataset):
         pad = self.pad
         if self.model_name == 'vgg16' or self.model_name=='vgg':
             tense = self.colour_size_tense(self.img_path[idx], vg=True) 
+        elif (self.model_name == '8c3l' and size == [57, 15]) or (self.model_name == '8c3l' and size == [29, 9]) or (self.model_name == '8c3l' and self.res == [15, 5]) or (self.model_name == '8c3l' and size ==[8, 3]):
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
+            
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
             tense = self.colour_size_tense(self.img_path[idx], vg=True)
         elif (self.model_name == '6c3l' and self.res == [15, 5]) or (self.model_name == '6c3l' and size ==[8, 3]): #and size == [29, 9]) or (self.model_name == '6c3l'

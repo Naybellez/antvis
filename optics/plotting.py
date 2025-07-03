@@ -68,6 +68,7 @@ def metrics(label, prediction): #TypeError: Singleton array tensor(3) cannot be 
 
 def learning_curve(t_loss, v_loss, save_location,run_name:str):
     save_location = check_save_path(save_location)
+    print(f"SAVING TO ... {save_location}")
     lab = "Learning Curve "+run_name
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
@@ -80,7 +81,7 @@ def learning_curve(t_loss, v_loss, save_location,run_name:str):
     #plt.yscale("log")
     plt.legend()
     if save_location != None:
-        plt.savefig(save_location+'/'+lab+'.png') #run_name
+        plt.savefig(save_location+lab+'.png') #run_name
     else:
         print("Save Location Not Specified!")
     plt.show()
