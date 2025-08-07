@@ -96,7 +96,7 @@ class Cards:
         resolution_card_155 = {'resolution':[15,5], 'padding':0, 'index':5}
         resolution_card_83 = {'resolution':[8,3], 'padding':0, 'index':6}
         
-        self.resolution_cards =[resolution_card_452144, resolution_card_22672, resolution_card_11336, resolution_card_5715, resolution_card_299, resolution_card_155, resolution_card_83]
+        self.resolutioncards =[resolution_card_452144, resolution_card_22672, resolution_card_11336, resolution_card_5715, resolution_card_299, resolution_card_155, resolution_card_83]
 
     def modname2linlay(self, model_name:str, res:list):
         for card in self.modelcards:
