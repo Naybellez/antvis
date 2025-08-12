@@ -8,19 +8,19 @@ import torch.nn.functional as F
 import pickle
 
 #  SELECT AND INIT MODEL VIA  MODEL NAME (STR) #  SELECT AND INIT MODEL VIA  MODEL NAME (STR)
-def choose_model(model_name, lin_lay, dropout):
+def choose_model(model_name, lin_lay, dropout, output_lin_lay=11):
     if model_name == '4c3l':
-        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+        return smallnet1(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks= (3,5), dropout= dropout)
     elif model_name == '3c2l':
-        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks = (3,5), dropout=dropout)
+        return smallnet2(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks = (3,5), dropout=dropout)
     elif model_name == '2c2l':
-        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+        return smallnet3(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks= (3,5), dropout= dropout)
     if model_name == '6c3l':
-        return sixnet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+        return sixnet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks= (3,5), dropout= dropout)
     elif model_name == '7c3l':
-        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+        return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks= (3,5), dropout= dropout)
     elif model_name == '8c3l':
-        return eightnnet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=11, ks= (3,5), dropout= dropout)
+        return eightnnet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks= (3,5), dropout= dropout)
     elif model_name == 'vgg16':
         from torchvision.models import vgg16
         model_vgg16 = vgg16()
@@ -30,7 +30,7 @@ def choose_model(model_name, lin_lay, dropout):
             model_vgg16.features,
             nn.Flatten(),
             vgg_classifier,
-            nn.Linear(4096,11), # cheanging the output layer
+            nn.Linear(4096,output_lin_lay), # cheanging the output layer
             nn.Softmax(dim=0),  
             )
                 

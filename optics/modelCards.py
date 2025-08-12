@@ -109,5 +109,26 @@ class Cards:
         for r in self.resolution_cards:
             if r['resolution'] == res:
                 return r['padding']
+
+
+def get_lin_lay(model_card, resolution):
+    if resolution == [452, 144]:
+        lin_lay = model_card['f_lin_lay'][0]
+    elif resolution == [226, 72]:
+        lin_lay = model_card['f_lin_lay'][1]
+    elif resolution == [113, 36]:
+        lin_lay = model_card['f_lin_lay'][2]
+    elif resolution == [57, 18]:
+        lin_lay = model_card['f_lin_lay'][3]
+    elif resolution == [29, 9]:
+        lin_lay = model_card['f_lin_lay'][4]
+    elif resolution == [15, 5]:
+        lin_lay = model_card['f_lin_lay'][5]
+    elif resolution == [8, 3]:
+        lin_lay = model_card['f_lin_lay'][6]
+    else:
+        print("PARAMETER NOT FOUND: \n f_lin_lay FROM MODEL CARD")
+    return lin_lay
+    
     
         

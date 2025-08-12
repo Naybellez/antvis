@@ -288,7 +288,10 @@ class  ImageProcessor():
     def trans_to_img(self, img, scale):
         if isinstance(img, torch.Tensor):  #type(img) == torch.Tensor:
             img = img.squeeze()
-            img = img.permute(1,2,0)
+            
+            if img.shape[2] != 3:           ##  No need to permute if end element is already 3 (colour channels)
+                img = img.permute(1,2,0)
+            
             img=np.array(img.cpu())*scale
 
         elif isinstance(img, np.ndarray): # type(img) == np.ndarray:
