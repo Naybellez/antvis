@@ -66,9 +66,9 @@ def loop_batch(model,
     
     model = model #.
     total_samples = len(data)
-    if optimizer: # need a choose scheduler function!
+    """if optimizer: # need a choose scheduler function!
         print("Optimizer present: ",optimizer)
-        scheduler = choose_scheduler(save_dict, optimizer)
+        scheduler = choose_scheduler(save_dict, optimizer)"""
     if train:
         model.train()
     else:
@@ -88,7 +88,7 @@ def loop_batch(model,
         #print("prediction made - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         loss = loss_fn(prediction, y_batch.to(device))
         #print("loss calculated- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
-        
+        #print('prediction:    ', prediction.shape)
         if train:
             optimizer.zero_grad()
             loss.backward()
@@ -173,7 +173,7 @@ def test_loop_batch(model,data, loss_fn, batch_size, device):
             #correct +=(prediction.argmax()==label.argmax()).sum().item()
         #acc = num_correct/total_count
         #accuracy = 100*(acc)
-        plot_predictions(prediction, label)
+        plot_predictions(prediction, label, num_samples=len(tense))
         
         test_acc_MSE = MSE_metric(prediction.to('cpu'), label.to('cpu'))
         test_acc_MAE =   MAE_metric(prediction.to('cpu'), label.to('cpu'))
@@ -215,10 +215,16 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     
     total_epochs = 0
     #print("Before Epochs of training - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
+
+    if optimizer: # need a choose scheduler function!
+        print("Optimizer present: ",optimizer)
+        scheduler = choose_scheduler(save_dict, optimizer)
+        
     for epoch in tqdm(range(save_dict['start_epoch'],epochs)):
 
         random_value = random.randrange(0,batch_size)
         print('Training...')
+        
 
         t_loss, train_prediction, t_label_list, t_correct, tacc, model, optimizer, img_batch, imNorm_batch = loop_batch(model, 
                                                                                                                   train,
@@ -235,19 +241,21 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
                                                                                                                   train = True) 
         
         #imNormBatch_list.append(imNorm_batch)
-        print(f"EPOCH    {epoch} / {epochs}:")
-        IP.view2(img_batch[0], 1, "original")
-        IP.view2(imNorm_batch[0], 1, "Processed") # img, scale:int, name:str
-        print(f"TRUE LABEL    :          {t_label_list[0]}")
-        print(f"PREDICTION    :          {train_prediction[0]}")
+        if int(epoch) == int(random_value):     # == 0 and epoch >1:
+            print(f"EPOCH    {epoch} / {epochs}:")
+            IP.view2(img_batch[0], 1, "original")
+            IP.view2(imNorm_batch[0], 1, "Processed") # img, scale:int, name:str
+            print(f"TRUE LABEL    :          {t_label_list[0]}")
+            print(f"PREDICTION    :          {train_prediction[0]}")
 
-        IP.view2(img_batch[6], 1, "original")
-        IP.view2(imNorm_batch[6], 1, "Processed") # img, scale:int, name:str
-        print(f"TRUE LABEL    :          {t_label_list[6]}")
-        print(f"PREDICTION    :          {train_prediction[6]}")
+        #IP.view2(img_batch[6], 1, "original")
+        #IP.view2(imNorm_batch[6], 1, "Processed") # img, scale:int, name:str
+        #print(f"TRUE LABEL    :          {t_label_list[6]}")
+        #print(f"PREDICTION    :          {train_prediction[6]}")
         
         t_loss_list.append(t_loss)
         #[t_predict_list.append(pred.argmax()) for pred in train_prediction]
+        #print(f"prediction    {train_prediction[0]}, {type(train_prediction[0])}")
         t_predict_list.append(train_prediction)
         wandb.log({'t_loss':t_loss})
         t_accuracy_list.append(tacc)

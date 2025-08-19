@@ -35,19 +35,7 @@ class IDSWDataSetLoader3(Dataset):
         self.gauss_range = gauss_range
         self.gauss_width = gauss_width
 
-        self.class_map = {
-            "1" : 0,
-            "2" : 1,
-            "3" : 2,
-            "4" : 3,
-            "5" : 4, 
-            "6" : 5,
-            "7" : 6, 
-            "8" : 7, 
-            "9" : 8,
-            "10" : 9,
-            "11" : 10
-        }
+        
 
     def __len__(self):
         return len(self.img_path)
