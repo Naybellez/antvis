@@ -288,7 +288,10 @@ class  ImageProcessor():
     def trans_to_img(self, img, scale):
         if isinstance(img, torch.Tensor):  #type(img) == torch.Tensor:
             img = img.squeeze()
-            img = img.permute(1,2,0)
+            
+            if img.shape[2] != 3:           ##  No need to permute if end element is already 3 (colour channels)
+                img = img.permute(1,2,0)
+            
             img=np.array(img.cpu())*scale
 
         elif isinstance(img, np.ndarray): # type(img) == np.ndarray:
@@ -306,6 +309,16 @@ class  ImageProcessor():
             cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
             #plt.imsave(res)
             #plt.savefig
+        plt.imshow(img)
+        plt.axis(False)
+        plt.show()
+        return img
+
+    def view2(self, img, scale:int, name:str, save_loc=None):
+        img = self.trans_to_img(img, scale)
+        if save_loc != None:
+            res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            cv2.imwrite(f"{save_loc}_{name}.jpeg", res)
         plt.imshow(img)
         plt.axis(False)
         plt.show()
@@ -522,6 +535,9 @@ class IDSWDataSetLoader2(Dataset):
         pad = self.pad
         if self.model_name == 'vgg16' or self.model_name=='vgg':
             tense = self.colour_size_tense(self.img_path[idx], vg=True) 
+        elif (self.model_name == '8c3l' and size == [57, 15]) or (self.model_name == '8c3l' and size == [29, 9]) or (self.model_name == '8c3l' and self.res == [15, 5]) or (self.model_name == '8c3l' and size ==[8, 3]):
+            tense = self.colour_size_tense(self.img_path[idx], vg=True)
+            
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
             tense = self.colour_size_tense(self.img_path[idx], vg=True)
         elif (self.model_name == '6c3l' and self.res == [15, 5]) or (self.model_name == '6c3l' and size ==[8, 3]): #and size == [29, 9]) or (self.model_name == '6c3l'
@@ -873,7 +889,7 @@ class IDSWDataSetLoader8(Dataset):
 
 
 class IDSWDataSetLoader9(Dataset):
-    def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False, twotone =False): # transform =True
+    def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False, twotone =False, horzflip=False,vertflip=False): # transform =True
         super(Dataset, self).__init__()
 
         self.device = device
@@ -888,6 +904,8 @@ class IDSWDataSetLoader9(Dataset):
         self.skyblock =skyblock
         self.b_invert = b_invert
         self.twotone = twotone
+        self.horzflip = horzflip
+        self.vertflip = vertflip
 
         self.class_map = {"1":0,"2": 1,
                             "3":2, "4":3,
@@ -1031,6 +1049,14 @@ class IDSWDataSetLoader9(Dataset):
         #img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         new_img = np.where(img<=200, 0, 255)
         return new_img
+
+    def flip_horizontal(self, img):
+        new_im =  cv2.flip(img, 1)
+        return new_im
+
+    def flip_vertical(self, img):
+        new_im = cv2.flip(img, 0)
+        return new_im
     
 
     def label_oh_tf(self, lab):	#device,
@@ -1057,6 +1083,10 @@ class IDSWDataSetLoader9(Dataset):
             im = self.invert_brightness(im)
         if self.twotone:
             im = self.two_tone(im)
+        if self.horzflip:
+            im = self.flip_horizontal(im)
+        if self.vertflip:
+            im = self.flip_vertical(im)
         if vg: # this occurs last so that image augmentions only occur on the image data
             im = self.blank_padding(im, self.av_lum, (224,224))
         im = im/255 #norm

@@ -221,14 +221,11 @@ def loop_batch(model, data, loss_fn, batch_size, sample,random_value,epoch,loop_
 
         x_batch, y_batch = batch
         #print("x batch: ",x_batch.shape)
-
         #print("y batch : ", y_batch.shape)
         #print("x and y from batch - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         prediction = model.forward(x_batch.to(device))
         #print("prediction made - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         loss = loss_fn(prediction, y_batch.to(device))
-
-
         #print("loss calculated- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         
 

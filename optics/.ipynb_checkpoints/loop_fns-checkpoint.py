@@ -216,13 +216,19 @@ def loop_batch(model, data, loss_fn, batch_size, sample,random_value,epoch,loop_
     current_loss = 0
     labels =[]
     #print("loopBatch pre loop- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
+
     for i, batch in enumerate(data,0):
 
         x_batch, y_batch = batch
+        #print("x batch: ",x_batch.shape)
+
+        #print("y batch : ", y_batch.shape)
         #print("x and y from batch - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
-        prediction = model.forward(x_batch)
+        prediction = model.forward(x_batch.to(device))
         #print("prediction made - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
-        loss = loss_fn(prediction, y_batch)
+        loss = loss_fn(prediction, y_batch.to(device))
+
+
         #print("loss calculated- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         
 
@@ -267,7 +273,11 @@ def test_loop_batch(model,data, loss_fn, batch_size, device):
         for i, batch in enumerate(data,0):
             #tense = tense.to(device)
             tense, label = batch
-            label = label.to(device)
+            print("in test batch. got tense and label from batch. type len.  tese:", type(tense), len(tense), " label:", type(label), len(label))
+            print(label)
+            #print("tense:",type(tense), "lable:",type(label))
+            #[l.to(device) for l in label]
+            #label = label.to(device)
             
             prediction = model.forward(tense.to(device))
             for i in range(len(label)-1):
@@ -276,6 +286,7 @@ def test_loop_batch(model,data, loss_fn, batch_size, device):
                     num_correct +=1
             [predict_list.append(pred.argmax().to('cpu').item()) for pred in prediction]
             [label_list.append(lab.argmax().to('cpu').item()) for lab in label]
+            print("in test bAtch post list comprehension. pred:", len(predict_list), "lab:", len(label_list))
             total_count += batch_size
             #correct +=(prediction.argmax()==label.argmax()).sum().item()
         acc = num_correct/total_count
@@ -288,7 +299,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     import sys
     sys.path.append('../.')
     import pickle
-    import wandb
+    #import wandb
     from IPython.display import clear_output
     model.train()
     t_loss_list = []
@@ -316,12 +327,12 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         t_loss_list.append(t_loss)
         #[t_predict_list.append(pred.argmax()) for pred in train_prediction]
         t_predict_list.append(train_prediction)
-        wandb.log({'t_loss':t_loss})
+        #wandb.log({'t_loss':t_loss})
     
         train_acc = (t_correct/(len(train)*batch_size)*100) ###
         print('train accuracy: ', train_acc )
         t_accuracy_list.append(train_acc)
-        wandb.log({'train_acc':train_acc})
+        #wandb.log({'train_acc':train_acc})
 
         print('validating...')
         #!nvidia-smi
@@ -330,22 +341,22 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         v_loss_list.append(v_loss)
         #[v_predict_list.append(pred) for pred in val_prediction]
         v_predict_list.append(val_prediction)
-        wandb.log({'v_loss':v_loss})
+        #wandb.log({'v_loss':v_loss})
         
         val_acc = (val_correct/(len(val)*batch_size)*100)
         v_accuracy_list.append(val_acc)
         print('validation accuracy: ', val_acc )
-        wandb.log({'val_acc':val_acc})
+        #wandb.log({'val_acc':val_acc})
     
         total_epochs += 1
         print(f"After Epoch {total_epochs} - Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
-        if epoch %50==0 and epoch !=0 and epoch != int(save_dict['start_epoch']):
-            from plotting import learning_curve, accuracy_curve
-            #checkpoint = copy.deepcopy(model)
-            checkpoint_id = f"{save_dict['model']}_{save_dict['optimiser']}_{save_dict['sched']}_{epoch}E_{save_dict['res']}_seed{save_dict['seed']}"
-            torch.save(model.state_dict(), str(save_dict['checkpoint_save_loc'])+checkpoint_id, pickle_module=pickle)
-            learning_curve(t_loss_list, v_loss_list, save_location=str(save_dict['checkpoint_save_loc']),run_name=checkpoint_id)
-            accuracy_curve(t_accuracy_list, v_accuracy_list,save_location=str(save_dict['checkpoint_save_loc']),run_name=checkpoint_id)
+        #if epoch %50==0 and epoch !=0 and epoch != int(save_dict['start_epoch']):
+        #    from plotting import learning_curve, accuracy_curve
+        #    #checkpoint = copy.deepcopy(model)
+        #    checkpoint_id = f"{save_dict['model']}_{save_dict['optimiser']}_{save_dict['sched']}_{epoch}E_{save_dict['res']}_seed{save_dict['seed']}"
+        #    torch.save(model.state_dict(), str(save_dict['checkpoint_save_loc'])+checkpoint_id+".pkl", pickle_module=pickle)
+        #    learning_curve(t_loss_list, v_loss_list, save_location=str(save_dict['checkpoint_save_loc']),run_name=checkpoint_id)
+        #    accuracy_curve(t_accuracy_list, v_accuracy_list,save_location=str(save_dict['checkpoint_save_loc']),run_name=checkpoint_id)
             #plot_confusion(predictions= test_predict_list, actual= y_test, title = "Test Confusion matrix", run_name = checkpoint_id,save_location =checkpoint_saveloc)
         clear_output()
         

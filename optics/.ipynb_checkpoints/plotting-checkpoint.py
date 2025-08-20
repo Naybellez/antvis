@@ -14,7 +14,7 @@ def check_save_path(save_location):
     return save_location
 
 def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
-    #print("1 p ", predictions[:10], type(predictions))
+    #this wasn't designed to be given a list of batches
     print(len(predictions), len(actual))
     save_location = check_save_path(save_location)
     sns.set()
@@ -26,15 +26,11 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
         predict_list = [int(t.numpy()) for t in predictions]
     else:
         predict_list = predictions
-    
-    #print("3 p ",predict_list[:10], type(predict_list))
-
 
     #print("1  a ", actual[:10], type(actual))
     if type(actual[0])!= int:
         actual = [int(l.argmax()) for l in actual]
     #print("2  a ", actual[:10], type(actual))
-
     actual = np.array(actual)
     #print("3  a ", actual[:10], type(actual))
     predict_list = np.array(predict_list)
@@ -145,3 +141,31 @@ def plot_grad_flow(model):
     plt.title("Gradient flow")
     plt.grid(True)
     model = model.to('gpu')
+
+
+def create_polar_plot(df_coordinates, max_len):
+    # takes in a pandas df
+    # max_len is the max length of all df to be plotted. used to visually see the time taken- time from frames
+    # convert data from df series to np.array for plotting
+    _x = np.array(df_coordinates['x'])
+    _y =  np.array(df_coordinates['y'])
+
+    # Convert to polar coordinates
+    r = np.sqrt(_x**2 + _y**2)  # radius
+    theta = np.arctan2(_y, _x)  # angle in radians
+    
+    # Create the polar plot
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111, projection='polar')
+    
+    # Plot the points
+    ax.scatter(theta, r, alpha=0.5, c=df_coordinates['frame'], vmin=0, vmax=max_len, cmap="gist_rainbow") #nipy_spectral
+
+    ax.set_thetagrids(np.arange(0, 360, 30),
+                      labels=['180°', '150°', '120°', '90°', '60°', '30°',
+                             '0°', '330°', '300°', '270°', '240°', '210°'])
+    # Customize the plot
+    ax.set_title('Coordinate Points in Polar Space')
+    ax.grid(True)
+    
+    return fig
