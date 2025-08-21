@@ -45,7 +45,7 @@ def MAE_metric(preds, labels):
 # peak distance error. # distance between the two gaus peaks (one for true labels and one for predictions)
 def peak_disterr_metric(preds, labels):
     pred_idx = torch.argmax(preds, dim=1).float()
-    labels_idx =torch.argmax(labels, dim=1).float()
+    labels_idx = torch.argmax(labels, dim=1).float()
     return torch.mean(torch.abs(pred_idx-labels_idx)).item()
 
 # sub pixel  peak precision  #  quadratic interpolation around the maximum to estimate the true peak position
@@ -59,6 +59,7 @@ def loop_batch(model,
                random_value,
                epoch,
                loop_run_name, 
+               IP,
                save_dict, device, 
                optimizer = None, 
                scheduler = None, 
@@ -79,10 +80,10 @@ def loop_batch(model,
     current_loss = 0
     labels =[]
     #print("loopBatch pre loop- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
-
+    
     for i, batch in enumerate(data,0):
-
-        x_batch, y_batch, img_batch, imNorm_batch = batch
+        
+        x_batch, y_batch = batch #, img_batch, imNorm_batch
         
         prediction = model.forward(x_batch.to(device))
         #print("prediction made - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
@@ -93,12 +94,23 @@ def loop_batch(model,
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        
+            
+        if scheduler and scheduler is not "NoSched":
+            scheduler.step(loss)
+            
         for i in range(len(y_batch)-1):
             if y_batch[i].argmax() == prediction[i].argmax():
                 num_correct +=1
-                
+        # img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str
 
+        
+        """randomval = random.randint(0, len(x_batch))
+        if i == randomval:
+            print('in loop')
+            IP.view(x_batch[0], 1, None, None, None, None)
+            print(x_batch[0])"""
+
+        
         [predict_list.append(pred.argmax().item()) for pred in prediction]
         [labels.append(y.argmax().item()) for y in y_batch]
 
@@ -106,11 +118,10 @@ def loop_batch(model,
         current_loss += loss.item()
 
         #print("loopBatch end of loop Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
-        if scheduler and scheduler is not "NoSched":
-            scheduler.step(loss)
+        
             
         acc_MSE = MSE_metric(prediction.to('cpu'), y_batch.to('cpu'))
-        acc_MAE =   MAE_metric(prediction.to('cpu'), y_batch.to('cpu'))
+        acc_MAE =  MAE_metric(prediction.to('cpu'), y_batch.to('cpu'))
         peakdist = peak_disterr_metric(prediction.to('cpu'), y_batch.to('cpu'))
 
         #print('accuracy MSE: ', acc_MSE )
@@ -123,9 +134,9 @@ def loop_batch(model,
         wandb.log({'train_peakDistErr': peakdist})
 
     if train:
-        return current_loss, predict_list, labels, num_correct, acc, model, optimizer, img_batch, imNorm_batch #, lr_ls
+        return current_loss, predict_list, labels, num_correct, acc, model, optimizer#, img_batch, imNorm_batch #, lr_ls
     else:
-        return current_loss, predict_list, labels, num_correct, acc, img_batch, imNorm_batch # changed y_batch to labels in return 
+        return current_loss, predict_list, labels, num_correct, acc#, img_batch, imNorm_batch # changed y_batch to labels in return 
 
 
 def plot_predictions(preds, targets, num_samples=5):
@@ -156,7 +167,7 @@ def test_loop_batch(model,data, loss_fn, batch_size, device):
     with torch.no_grad():
         for i, batch in enumerate(data,0):
             #tense = tense.to(device)
-            tense, label, img_batch, imNorm_batch = batch
+            tense, label = batch #, img_batch, imNorm_batch
             #print("in test batch. got tense and label from batch. type len.  tese:", type(tense), len(tense), " label:", type(label), len(label))
             #print(label)
 
@@ -224,9 +235,9 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
 
         random_value = random.randrange(0,batch_size)
         print('Training...')
-        
+        # , img_batch, imNorm_batch
 
-        t_loss, train_prediction, t_label_list, t_correct, tacc, model, optimizer, img_batch, imNorm_batch = loop_batch(model, 
+        t_loss, train_prediction, t_label_list, t_correct, tacc, model, optimizer = loop_batch(model, 
                                                                                                                   train,
                                                                                                                   loss_fn,
                                                                                                                   batch_size,
@@ -234,8 +245,9 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
                                                                                                                   random_value, 
                                                                                                                   epoch, 
                                                                                                                   loop_run_name, 
-                                                                                                                  save_dict, 
-                                                                                                                  device, 
+                                                                                                                  IP,
+                                                                                                                  save_dict = save_dict, 
+                                                                                                                  device = device, 
                                                                                                                   optimizer = optimizer, 
                                                                                                                   scheduler = scheduler_value, 
                                                                                                                   train = True) 
@@ -281,8 +293,8 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
 
         print('Validating...')
         #!nvidia-smi
-        
-        v_loss, val_prediction, v_label_list, val_correct, vacc, img_batch, imNorm_batch = loop_batch(model, 
+        # , img_batch, imNorm_batch
+        v_loss, val_prediction, v_label_list, val_correct, vacc = loop_batch(model, 
                                                                                                 val, 
                                                                                                 loss_fn,
                                                                                                 batch_size,
@@ -290,6 +302,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
                                                                                                 random_value,
                                                                                                 epoch,
                                                                                                 loop_run_name, 
+                                                                                                IP,
                                                                                                 save_dict, 
                                                                                                 device, 
                                                                                                 optimizer = None, 

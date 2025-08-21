@@ -26,6 +26,12 @@ class IDSWDataSetLoader3(Dataset):
     def __init__(self, x, res, av_lum, model_name,gauss_range, gauss_width, device):
         super(Dataset, self).__init__()
 
+        if not isinstance(x, str):
+            raise TypeError("image paths should be strings")
+        elif x is None:
+            raise TypeError("DataLoader requires image paths")
+        
+        
         self.device = device
         self.img_path = x
         #self.labels = y
@@ -132,7 +138,7 @@ class IDSWDataSetLoader3(Dataset):
         
         tense = self.to_tensor(imNorm) 
         
-        return tense, label, img, imNorm
+        return tense, label#, img, imNorm
 
     # label_oh_tf - BUT we want direction
     def gauss_label(self, north):
@@ -174,16 +180,16 @@ class IDSWDataSetLoader3(Dataset):
         size= self.res
         
         if self.model_name == 'vgg16' or self.model_name=='vgg':
-            tense, label, img, imNorm = self.colour_size_tense(self.img_path[idx], vg=True) 
+            tense, label = self.colour_size_tense(self.img_path[idx], vg=True)  #, img, imNorm
         elif (self.model_name == '8c3l' and size == [57, 15]) or (self.model_name == '8c3l' and size == [29, 9]) or (self.model_name == '8c3l' and self.res == [15, 5]) or (self.model_name == '8c3l' and size ==[8, 3]):
-            tense, label, img, imNorm = self.colour_size_tense(self.img_path[idx], vg=True)
+            tense, label = self.colour_size_tense(self.img_path[idx], vg=True) #, img, imNorm
             
         elif (self.model_name == '7c3l' and size == [29, 9]) or (self.model_name == '7c3l' and self.res == [15, 5]) or (self.model_name == '7c3l' and size ==[8, 3]):
-            tense, label, img, imNorm = self.colour_size_tense(self.img_path[idx], vg=True)
+            tense, label = self.colour_size_tense(self.img_path[idx], vg=True) #, img, imNorm
         elif (self.model_name == '6c3l' and self.res == [15, 5]) or (self.model_name == '6c3l' and size ==[8, 3]): #and size == [29, 9]) or (self.model_name == '6c3l'
-            tense, label, img, imNorm = self.colour_size_tense(self.img_path[idx], vg=True)
+            tense, labe = self.colour_size_tense(self.img_path[idx], vg=True) #l, img, imNorm
         else:
-            tense, label, img, imNorm = self.colour_size_tense(self.img_path[idx])       
+            tense, label = self.colour_size_tense(self.img_path[idx])        #, img, imNorm
         
         # label
-        return (tense, label, img, imNorm)
+        return (tense, label)#, img, imNorm)

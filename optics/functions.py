@@ -278,9 +278,7 @@ class  ImageProcessor():
         if vg:
             #print('vg in place')
             im = self.blank_padding(im, av_lum, (224,224)) 
-        #print(im.shape)
-        #plt.imshow(im)
-        #plt.show()
+
         im = self.to_tensor(im) 
         #print(im.shape)
         return im
@@ -288,27 +286,27 @@ class  ImageProcessor():
     def trans_to_img(self, img, scale):
         if isinstance(img, torch.Tensor):  #type(img) == torch.Tensor:
             img = img.squeeze()
-            
             if img.shape[2] != 3:           ##  No need to permute if end element is already 3 (colour channels)
                 img = img.permute(1,2,0)
-            
+                
             img=np.array(img.cpu())*scale
-
+            
         elif isinstance(img, np.ndarray): # type(img) == np.ndarray:
             img = img*scale
+            
         elif isinstance(img, str): # type(img) == str:
-            #print("here 1")
             img = cv2.imread(img)
-            #print("here 2")
         return img
 
     def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
         img = self.trans_to_img(img, scale)
+        
         if save_dict != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
             #plt.imsave(res)
             #plt.savefig
+        
         plt.imshow(img)
         plt.axis(False)
         plt.show()
@@ -316,9 +314,11 @@ class  ImageProcessor():
 
     def view2(self, img, scale:int, name:str, save_loc=None):
         img = self.trans_to_img(img, scale)
+        
         if save_loc != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             cv2.imwrite(f"{save_loc}_{name}.jpeg", res)
+            
         plt.imshow(img)
         plt.axis(False)
         plt.show()
