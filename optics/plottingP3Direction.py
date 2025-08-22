@@ -23,7 +23,9 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
         actual = [int(l.argmax()) for l in actual]
 
     actual = [int(np.round(i/10)) for i in actual]
+    print(np.unique(actual))
     predict_list = [int(np.round(i/10)) for i in predict_list]
+    print(np.unique(predict_list))
     actual = np.array(actual)
     predict_list = np.array(predict_list)
 
@@ -47,4 +49,20 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
         plt.savefig(save_location+'/'+'Conf_mtrx'+title+run_name+'.png', format='png')
     else:
         print("Save Location Not Specified!")
+    plt.show()
+
+
+def plot_predictions(preds, targets, num_samples=5):
+
+    preds = preds.detach().cpu()
+    targets = targets.detach().cpu()
+
+    plt.figure(figsize=(10, num_samples * 2))
+    for i in range(num_samples):
+        plt.subplot(num_samples, 1, i+1)
+        plt.plot(targets[i], label="Target", color='black', linewidth=2)
+        plt.plot(preds[i], label="Prediction", color='red', linestyle='--')
+        plt.title(f"Sample {i} | Target Peak : {(targets[i].argmax()).item()} | Pred Peak : {(preds[i].argmax()).item()}")
+        plt.legend()
+    plt.tight_layout()
     plt.show()

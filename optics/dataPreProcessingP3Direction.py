@@ -21,7 +21,7 @@ def import_imagedata(file_path, locations:list):
 
     for file in os.listdir(file_path):
         if file[0:4] == 'IDSW':
-            if int(file[4:7]) is in locations:
+            if int(file[4:7]) in locations:
                 j = file_path+file
                 i=int(file[5:7]) -1
                 i = str(i)
@@ -35,7 +35,7 @@ def get_data(random_seed, file_path:str, locations:list):
     if file_path is None:
         raise TypeError("get_data requires file path argument")
     elif not isinstance(file_path, str):
-        raise TypeError("get_data requires file path as string")
+        raise TypeError(f"get_data requires file path as string not {type(file_path)}")
     #print(file_path)
     img_len = len(os.listdir(file_path))
     x, y = import_imagedata(file_path, locations)
