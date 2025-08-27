@@ -130,5 +130,9 @@ def get_lin_lay(model_card, resolution):
         print("PARAMETER NOT FOUND: \n f_lin_lay FROM MODEL CARD")
     return lin_lay
     
-    
+def return_card(modelcards, key:str, targetValue:str):
+    #for card in modelcards:
+    #    if card['name'] == modelname:
+    #        return card
+    return [card for card in modelcards if card[key]== targetValue]
         

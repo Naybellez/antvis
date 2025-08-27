@@ -28,6 +28,8 @@ import wandb
 import sys
 sys.path.append('../.')
 
+from torch.utils.data import DataLoader
+from dataloaderP3Direction import IDSWDataSetLoader3
 
 from modelManagment import choose_scheduler
 
@@ -43,10 +45,22 @@ def MAE_metric(preds, labels):
     return torch.mean(torch.abs(preds-labels)).item()
     
 # peak distance error. # distance between the two gaus peaks (one for true labels and one for predictions)
-def peak_disterr_metric(preds, labels):
+def peak_disterr_metric1(preds, labels):
     pred_idx = torch.argmax(preds, dim=1).float()
     labels_idx = torch.argmax(labels, dim=1).float()
     return torch.mean(torch.abs(pred_idx-labels_idx)).item()
+
+def peak_disterr_metric2(preds, labels):
+    pred_idx = torch.argmax(preds, dim=1).float()
+    labels_idx = torch.argmax(labels, dim=1).float()
+    num_classes = len(labels)
+    
+    # Absolute difference
+    diff = torch.abs(pred_idx - labels_idx)
+    # Wrap around circle
+    wrapped_diff = torch.minimum(diff, num_classes - diff) # to account for circular labels. return the smaller val (diff OR num_classes- diff)
+    
+    return [w.item() for w in wrapped_diff], torch.mean(wrapped_diff).item()
 
 # sub pixel  peak precision  #  quadratic interpolation around the maximum to estimate the true peak position
 #def peakpos_metric(pred)
@@ -129,8 +143,8 @@ def loop_batch(model,
             print(x_batch[0])"""
 
         
-        [predict_list.append(pred.argmax().to('cpu').item()) for pred in prediction]# .argmax()
-        [labels.append(y.argmax().to('cpu').item()) for y in y_batch] #.argmax()
+        [predict_list.append(pred.argmax().item()) for pred in prediction]# .argmax()  .to('cpu')
+        [labels.append(y.argmax().item()) for y in y_batch] #.argmax()  .to('cpu')
 
         total_count+= batch_size
         current_loss += loss.item()
@@ -142,17 +156,22 @@ def loop_batch(model,
         batch_acc_MSE.append(acc_MSE)
         acc_MAE =  MAE_metric(prediction.to('cpu'), y_batch.to('cpu'))
         batch_acc_MAE.append(acc_MAE)
-        peakdist = peak_disterr_metric(prediction.to('cpu'), y_batch.to('cpu'))
-        batch_peakdist.append(peakdist)
+        peakdist, peakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), y_batch.to('cpu'))
+        batch_peakdist.append(peakdistMEAN)
 
         #print('accuracy MSE: ', acc_MSE )
         #print('accuracy MAE: ', acc_MAE)
         #print(f"accuracy peak dist  err {peakdist}")
 
         
-        wandb.log({'train_acc_MSE':acc_MSE})
-        wandb.log({'train_acc_MAE':acc_MAE})
-        wandb.log({'train_peakDistErr': peakdist})
+        if train:
+            wandb.log({'train_acc_MSE':acc_MSE})
+            wandb.log({'train_acc_MAE':acc_MAE})
+            wandb.log({'train_peakDistErr': peakdist})
+        else:
+            wandb.log({'val_acc_MSE':acc_MSE})
+            wandb.log({'val_acc_MAE':acc_MAE})
+            wandb.log({'val_peakDistErr': peakdist})
         #print(f"{i} E batch")
 
     #print(f" E looop")
@@ -167,7 +186,7 @@ def loop_batch(model,
     batch_acc_MSE_mean = (sum(batch_acc_MSE) / len(batch_acc_MSE))
     batch_acc_MAE_mean = (sum(batch_acc_MAE) / len(batch_acc_MAE))
     batch_peakdist_mean = (sum(batch_peakdist) / len(batch_peakdist))
-    acc = {'MSE':batch_acc_MSE_mean, 'MAE':batch_acc_MAE_mean, 'peakDist':batch_peakdist_mean}
+    acc = {'baseAcc': (num_correct/total_count),'MSE':batch_acc_MSE_mean, 'MAE':batch_acc_MAE_mean, 'peakDist':batch_peakdist_mean}
     if train:
         return current_loss, predict_list, labels, num_correct, acc, model, optimizer, img_batch, imNorm_batch #, lr_ls
     else:
@@ -182,6 +201,7 @@ def test_loop_batch(model,data, loss_fn, batch_size, device):
     model = model.eval()
     predict_list = []
     label_list = []
+    peakdists = []
     total_count =0
     num_correct = 0
     correct = 0
@@ -201,16 +221,24 @@ def test_loop_batch(model,data, loss_fn, batch_size, device):
                     num_correct +=1
             [predict_list.append(pred.to('cpu')) for pred in prediction]  #.argmax()  # .argmax(),.item(),.argmax(),.item()
             [label_list.append(lab.to('cpu')) for lab in label] #.argmax()  # .argmax(),.item(),.argmax(),.item()
+            #print(len(prediction))
+            
             #print("in test bAtch post list comprehension. pred:", len(predict_list), "lab:", len(label_list))
             total_count += batch_size
             #correct +=(prediction.argmax()==label.argmax()).sum().item()
         #acc = num_correct/total_count
         #accuracy = 100*(acc)
-        plot_predictions(prediction, label, num_samples=len(tense))
+        # peakdists = 
+        #print(len(predict_list), len(label_list), len(peakdists))
+        #peakdists = [peak_disterr_metric2(predict_list[i], label_list[i]) for i in range(len(predict_list)-1)]
+        #print(peakdists[0], len(peakdists))
+       
         
         test_acc_MSE = MSE_metric(prediction.to('cpu'), label.to('cpu'))
         test_acc_MAE =  MAE_metric(prediction.to('cpu'), label.to('cpu'))
-        test_peakdist = peak_disterr_metric(prediction.to('cpu'), label.to('cpu'))
+        test_peakdist, testpeakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), label.to('cpu'))
+
+        plot_predictions(prediction, label, test_peakdist, num_samples=len(tense)) # compare label and prediction distribution
 
         #print('test accuracy MSE: ', test_acc_MSE )
         #print('test accuracy MAE: ', test_acc_MAE)
@@ -233,6 +261,11 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     #import wandb
     from IPython.display import clear_output
     IP = ImageProcessor(device)
+
+    # to reduce number of var changes later on
+    x_train, resolution, av_lum, model_name, gauss_range, gauss_width, batchsize = train
+    x_val  = val
+    
     #model.train()
     t_loss_list = []
     v_loss_list = []
@@ -254,10 +287,19 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         scheduler = choose_scheduler(save_dict, optimizer)
         
     for epoch in tqdm(range(save_dict['start_epoch'],epochs)):
+        print(f"Data Loading...")
+        train_ds = IDSWDataSetLoader3(x_train, resolution, av_lum, model_name, gauss_range, gauss_width, device)# av_lum, res,pad,
+        train = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True) #, num_workers=2
+
+        val_ds= IDSWDataSetLoader3(x_val, resolution, av_lum, model_name, gauss_range, gauss_width, device)
+        val = DataLoader(val_ds, batch_size=batch_size, shuffle=True, drop_last=True)
 
         random_value = random.randrange(0,batch_size)
         print('Training...')
         # , img_batch, imNorm_batch
+        # if i initialise the tran and val dataloaders here - I would get different augmented images each epoch but with the same base images
+        # i could tie this with more epochs to overall have a larger ds
+        
 
         t_loss, train_prediction, t_label_list, t_correct, tacc, model, optimizer, img_batch, imNorm_batch = loop_batch(model, 
                                                                                                                   train,
