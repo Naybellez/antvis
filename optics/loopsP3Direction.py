@@ -20,6 +20,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import torch
 import torch.nn as nn
 from torch.nn import functional
+import torch.optim.lr_scheduler as lr_scheduler
 
 from tqdm import tqdm
 
@@ -81,9 +82,10 @@ def loop_batch(model,
     
     model = model #.
     total_samples = len(data)
-    """if optimizer: # need a choose scheduler function!
+    if optimizer: # need a choose scheduler function!
         print("Optimizer present: ",optimizer)
-        scheduler = choose_scheduler(save_dict, optimizer)"""
+        scheduler = choose_scheduler(save_dict, optimizer)#"NoSched"#"RoP"#"Exp"
+    
     if train:
         model.train()
     else:
