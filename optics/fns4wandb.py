@@ -66,10 +66,15 @@ def set_optimizer(optim, model, learning_rate):
 
 
 def set_lossfn(lf):
+    print(f"set_lossfn    lf  {lf}")
+    if isinstance(lf, list):
+        lf = lf[0]
     if lf =='MSE':
         loss_fn = nn.MSELoss()
     elif lf == 'CrossEntropy':
         loss_fn = nn.CrossEntropyLoss()
+    else:
+        loss_fn = lf
     return loss_fn
 
 def choose_model(config):

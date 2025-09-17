@@ -3,11 +3,11 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 
-def import_imagedata(file_path, locations:list): 
+def import_imagedata(file_path, locations= [1,2,3,4,5,6,7,8,9,10,11]): 
     # ensure locations is a list
-    if locations is None:
-        locations = [1,2,3,4,5,6,7,8,9,10,11]
-    elif isinstance(locations, str):
+    #if locations is None:
+    #    locations = [1,2,3,4,5,6,7,8,9,10,11]
+    if isinstance(locations, str):
         locations = [locations]
     if any(not isinstance(x, int) for x in locations):
         raise TypeError("locations list should be list of int(s) 0-11")
@@ -31,7 +31,7 @@ def import_imagedata(file_path, locations:list):
     image_arr = np.array(images)
     return image_arr, label_arr
 
-def get_data(random_seed, file_path:str, locations:list):
+def get_data(random_seed, file_path:str, locations=[1,2,3,4,5,6,7,8,9,10,11]):
     if file_path is None:
         raise TypeError("get_data requires file path argument")
     elif not isinstance(file_path, str):

@@ -267,8 +267,8 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config):
         #print(peakdists[0], len(peakdists))
        
         
-        test_acc_MSE = MSE_metric(prediction.to('cpu'), label.to('cpu'))
-        test_acc_MAE =  MAE_metric(prediction.to('cpu'), label.to('cpu'))
+        test_err_MSE = MSE_metric(prediction.to('cpu'), label.to('cpu'))
+        test_err_MAE =  MAE_metric(prediction.to('cpu'), label.to('cpu'))
         test_peakdist, testpeakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), label.to('cpu'))
 
         plot_predictions(prediction, label, test_peakdist, num_samples=len(tense)) # compare label and prediction distribution
