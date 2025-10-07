@@ -6,7 +6,7 @@ class BoxData():
     def __init__(self, access_token):
         oauth =OAuth2(
             client_id= 'hw534w4beg3mscd8v265vpkk8ndzc5y1',
-            client_secret ='nmL4fcHjb2drntVJxGSqQvjt19t0hIlu',
+            client_secret ='nmL4fcHjb2drntVJxGSqQvjt19t0hIlu'#'nmL4fcHjb2drntVJxGSqQvjt19t0hIlu',
             access_token = access_token)
     
     
