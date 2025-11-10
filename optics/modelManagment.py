@@ -230,7 +230,7 @@ def load_pretrained_model(dir_pkl, pkl_name, model_name, res:str):
 def choose_scheduler(save_dict, optimizer):
     import torch.optim.lr_scheduler as lr_scheduler
     if save_dict['scheduler'] == "RoP":
-        scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, threshold=10)
+        scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min')#, factor=0.1, patience=10, threshold=10)
     elif save_dict['scheduler'] == "Exp":
         scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.95, last_epoch=-1, verbose='deprecated') 
     elif save_dict['scheduler'] == "NoSched":

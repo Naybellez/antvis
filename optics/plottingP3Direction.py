@@ -5,6 +5,23 @@ import pickle
 import seaborn as sns
 from plotting import check_save_path
 
+
+def checkSaveName(saveloc, savename):
+    name, ext = os.path.splitext(savename)
+    match = re.search(r"_(\d+)$", name)
+    if match:
+        base = name[:match.start()]
+        i = int(match.group(1))
+    else:
+        base =  name
+        i = 0
+    new_name = savename
+    while os.path.exists(os.path.join(saveloc,savename)):
+        i +=1
+        new_name = f"{base}_{i}"
+    return savename
+
+
 def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
     #this wasn't designed to be given a list of batches
     #print(len(predictions), len(actual))
@@ -52,7 +69,7 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
     plt.show()
 
 
-def plot_predictions(preds, targets, peakdists, num_samples=5):
+def plot_predictions(preds, targets, peakdists, num_samples=5, runname=""):
 
     preds = preds.detach().cpu()
     targets = targets.detach().cpu()
@@ -73,4 +90,6 @@ def plot_predictions(preds, targets, peakdists, num_samples=5):
                 labelbottom=False)
         plt.legend()
     plt.tight_layout()
+    savename = checkSaveName("/its/home/nn268/antvis/antvis/optics/res_big_loop_saves/models/p3/testing/labelspredplots/",runname) # saveloc, savename)
+    plt.savefig(f"/its/home/nn268/antvis/antvis/optics/res_big_loop_saves/models/p3/testing/labelspredplots/{savename}.jpg")
     plt.show()

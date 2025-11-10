@@ -69,6 +69,10 @@ for j in range(len(y_batch)-1):
                 num_correct +=1
 
 """
+
+
+
+
 # get pred.argmax() 
 # is the index within the gauss of label
 def get_roughAcc(plusMinus, Tlabel, Preds):
@@ -98,14 +102,13 @@ def loop_batch(model,
                IP,
                save_dict, device, config,
                optimizer = None, 
-               scheduler = None, 
                train =True):	# Train and Val loops. Default is train
     
     model = model #.
     total_samples = len(data)
     if optimizer: # need a choose scheduler function!
         print("Optimizer present: ",optimizer)
-        scheduler = choose_scheduler(save_dict, optimizer)#"NoSched"#"RoP"#"Exp"
+        #scheduler = choose_scheduler(save_dict, optimizer)#"NoSched"#"RoP"#"Exp"
     
     if train:
         model.train()
@@ -151,12 +154,7 @@ def loop_batch(model,
             loss.backward()
             optimizer.step()
             
-            if scheduler and scheduler is not "NoSched":
-                scheduler.step(loss)
-            
-        """for j in range(len(y_batch)-1):
-            if y_batch[j].argmax() == prediction[j].argmax():
-                num_correct +=1"""
+          
         acc = get_roughAcc(config.gauss_width, y_batch, prediction)
         if train:
             wandb.log({"TrainAcc": acc[2]})
@@ -188,22 +186,24 @@ def loop_batch(model,
         peakdist, peakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), y_batch.to('cpu'))
         batch_peakdist.append(peakdistMEAN)
 
-        #print('accuracy MSE: ', acc_MSE )
-        #print('accuracy MAE: ', acc_MAE)
-        #print(f"accuracy peak dist  err {peakdist}")
+
+        #print(f"type of metric errors  MSE : {type(acc_MSE)}     MAE : {type(acc_MAE)}    peakdist : {type(peakdist)}")
+        #print(f"type of peak dist mean   peaddist : {type(peakdistMEAN)}")
 
         
         if train:
             wandb.log({'train_err_MSE':acc_MSE})
             wandb.log({'train_err_MAE':acc_MAE})
+            wandb.log({'train_peakDistErrMEAN': peakdistMEAN})
             wandb.log({'train_peakDistErr': peakdist})
+            #print(f"errors logged")
         else:
             wandb.log({'val_err_MSE':acc_MSE})
             wandb.log({'val_err_MAE':acc_MAE})
+            wandb.log({'val_peakDistErrMEAN': peakdistMEAN})
             wandb.log({'val_peakDistErr': peakdist})
-        #print(f"{i} E batch")
+            
 
-    #print(f" E looop")
     if sizeBatch ==0 or numBatch == 0:
         print(f" sizeBatch: {sizeBatch}   numBatch:  {numBatch}")
     sizeBatch = sizeBatch / numBatch # get the average batch size
@@ -215,6 +215,7 @@ def loop_batch(model,
     batch_acc_MSE_mean = (sum(batch_acc_MSE) / len(batch_acc_MSE))
     batch_acc_MAE_mean = (sum(batch_acc_MAE) / len(batch_acc_MAE))
     batch_peakdist_mean = (sum(batch_peakdist) / len(batch_peakdist))
+    print(f"peak dist means  {batch_peakdist_mean}")
     accs = {'baseAcc': acc[2],'MSE':batch_acc_MSE_mean, 'MAE':batch_acc_MAE_mean, 'peakDist':batch_peakdist_mean}
     if train:
         return current_loss, predict_list, labels, accs, model, optimizer, img_batch, imNorm_batch #, lr_ls
@@ -223,7 +224,7 @@ def loop_batch(model,
 
 
 
-def test_loop_batch(model,data, loss_fn, batch_size, device, config):
+def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname=""):
     import sys
     from plottingP3Direction import plot_predictions
     sys.path.append('../.')
@@ -237,11 +238,7 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config):
 
     with torch.no_grad():
         for i, batch in enumerate(data,0):
-            #tense = tense.to(device)
             tense, label, img_batch, imNorm_batch = batch #, img_batch, imNorm_batch
-            #print("in test batch. got tense and label from batch. type len.  tese:", type(tense), len(tense), " label:", type(label), len(label))
-            #print(label)
-
             
             prediction = model.forward(tense.to(device))
             """for i in range(len(label)-1):
@@ -254,24 +251,18 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config):
             
             [predict_list.append(pred.to('cpu')) for pred in prediction]  #.argmax()  # .argmax(),.item(),.argmax(),.item()
             [label_list.append(lab.to('cpu')) for lab in label] #.argmax()  # .argmax(),.item(),.argmax(),.item()
-            #print(len(prediction))
             
-            #print("in test bAtch post list comprehension. pred:", len(predict_list), "lab:", len(label_list))
             total_count += batch_size
-            #correct +=(prediction.argmax()==label.argmax()).sum().item()
-        #acc = num_correct/total_count
-        #accuracy = 100*(acc)
-        # peakdists = 
-        #print(len(predict_list), len(label_list), len(peakdists))
-        #peakdists = [peak_disterr_metric2(predict_list[i], label_list[i]) for i in range(len(predict_list)-1)]
-        #print(peakdists[0], len(peakdists))
+
        
         
         test_err_MSE = MSE_metric(prediction.to('cpu'), label.to('cpu'))
         test_err_MAE =  MAE_metric(prediction.to('cpu'), label.to('cpu'))
         test_peakdist, testpeakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), label.to('cpu'))
 
-        plot_predictions(prediction, label, test_peakdist, num_samples=len(tense)) # compare label and prediction distribution
+        
+
+        plot_predictions(prediction, label, test_peakdist, num_samples=len(tense), runname=runname) # compare label and prediction distribution
 
         #print('test accuracy MSE: ', test_acc_MSE )
         #print('test accuracy MAE: ', test_acc_MAE)
@@ -281,8 +272,7 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config):
         wandb.log({'test_acc_MAE':test_err_MAE})
         wandb.log({'test_peakDistErr': test_peakdist})
         
-        #print(accuracy)
-        #wandb.log({'test_acc': accuracy})
+
         accuracy = {'BaseAcc':tacc[2],'MSE': test_err_MSE, 'MAE': test_err_MAE, 'peakDist': test_peakdist}
         return accuracy, predict_list, label_list
 
@@ -322,7 +312,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     for epoch in tqdm(range(save_dict['start_epoch'],epochs)):
         print(f"Data Loading...")
         train_ds = IDSWDataSetLoader3(x_train, resolution, av_lum, model_name, gauss_range, gauss_width, device)# av_lum, res,pad,
-        train = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True) #, num_workers=2
+        trainL = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True) #, num_workers=2
 
         val_ds= IDSWDataSetLoader3(x_val, resolution, av_lum, model_name, gauss_range, gauss_width, device)
         val = DataLoader(val_ds, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -332,23 +322,21 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         # , img_batch, imNorm_batch
         # if i initialise the tran and val dataloaders here - I would get different augmented images each epoch but with the same base images
         # i could tie this with more epochs to overall have a larger ds
-        
 
         t_loss, train_prediction, t_label_list, tacc, model, optimizer, img_batch, imNorm_batch = loop_batch(model, 
-                                                                                                                  train,
-                                                                                                                  loss_fn,
-                                                                                                                  batch_size,
-                                                                                                                  sample, 
-                                                                                                                  random_value, 
-                                                                                                                  epoch, 
-                                                                                                                  loop_run_name, 
-                                                                                                                  IP,
-                                                                                                                  save_dict, 
-                                                                                                                  device, config,
-                                                                                                                  optimizer, 
-                                                                                                                  scheduler = scheduler_value, 
-                                                                                                                  train = True) 
-        
+                                                                                                             trainL,
+                                                                                                             loss_fn,
+                                                                                                             batch_size,
+                                                                                                             sample, 
+                                                                                                             random_value, 
+                                                                                                             epoch, 
+                                                                                                             loop_run_name, 
+                                                                                                             IP,
+                                                                                                             save_dict, 
+                                                                                                             device, config,
+                                                                                                             optimizer, 
+                                                                                                             train = True) 
+
         #imNormBatch_list.append(imNorm_batch)
 
         print("tacc: ",tacc)
@@ -369,71 +357,39 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
         #print(f"prediction    {train_prediction[0]}, {type(train_prediction[0])}")
         t_predict_list.append(train_prediction)
         wandb.log({'t_loss':t_loss})
+       
         t_accuracy_list.append(tacc)
 
-        #train_acc = (t_correct/(len(train)*batch_size)*100) ###
-        # MSE_metric    MSE_metric   peak_disterr_metric
-        #print(f"LAB  {type(t_label_list)},   {t_label_list}")
-        #print(f" PRED   {type(train_prediction)},   {train_prediction}")
-        #train_acc_MSE = MSE_metric(train_prediction, t_label_list)
-        #train_acc_MAE =   MAE_metric(train_prediction, t_label_list)
-        #train_peakdist = peak_disterr_metric(train_prediction, t_label_list)
-
-        #print('train accuracy MSE: ', train_acc_MSE )
-        #print('train accuracy MAE: ', train_acc_MAE)
-        #print(f"train accuracy peak dist  err {train_peakdist}")
-
-        #train_acc = {'MSE':train_acc_MSE, 'MAE':train_acc_MAE, 'peakDist':train_peakdist}
-        #t_accuracy_list.append(train_acc)
-        #wandb.log({'train_acc_MSE':train_acc_MSE})
-        #wandb.log({'train_acc_MAE':train_acc_MAE})
-        #wandb.log({'train_peakDistErr': train_peakdist})
-        
-
         print('Validating...')
-        #print(epoch,len(val))
-        #!nvidia-smi
-        # , img_batch, imNorm_batch
+
         v_loss, val_prediction, v_label_list, vacc, img_batch, imNorm_batch = loop_batch(model, 
-                                                                                                val, 
-                                                                                                loss_fn,
-                                                                                                batch_size,
-                                                                                                sample,
-                                                                                                random_value,
-                                                                                                epoch,
-                                                                                                loop_run_name, 
-                                                                                                IP,
-                                                                                                save_dict, 
-                                                                                                device, config,
-                                                                                                optimizer = None, 
-                                                                                                scheduler = None, 
-                                                                                                train = False)
+                                                                                            val, 
+                                                                                            loss_fn,
+                                                                                            batch_size,
+                                                                                            sample,
+                                                                                            random_value,
+                                                                                            epoch,
+                                                                                            loop_run_name, 
+                                                                                            IP,
+                                                                                            save_dict, 
+                                                                                            device, config,
+                                                                                            optimizer = None, 
+                                                                                            train = False)
+        print(f"v loss  {v_loss}")
+        if scheduler and scheduler is not "NoSched":
+            scheduler.step(v_loss)
+            #print("sched step")
+            #print(scheduler.state_dict())
+            
         v_loss_list.append(v_loss)
         #[v_predict_list.append(pred) for pred in val_prediction]
         v_predict_list.append(val_prediction)
         wandb.log({'v_loss':v_loss})
-        
-        #val_acc = (val_correct/(len(val)*batch_size)*100)
-        #val_acc_MSE = MSE_metric(val_prediction, v_label_list)
-        #val_acc_MAE =   MAE_metric(val_prediction, v_label_list)
-        #val_peakdist = peak_disterr_metric(val_prediction, v_label_list)
 
-        #print('val accuracy MSE: ', val_acc_MSE )
-        #print('val accuracy MAE: ', val_acc_MAE)
-        #print(f"Val accuracy peak dist  err {val_peakdist}")
-
-        #val_acc = {'MSE':val_acc_MSE, 'MAE':val_acc_MAE, 'peakDist': val_peakdist}
         v_accuracy_list.append(vacc)
 
-        #wandb.log({'val_acc_MSE':val_acc_MSE})
-        #wandb.log({'val_acc_MAE':val_acc_MAE})
-        #wandb.log({'val_peakDistErr': val_peakdist})
 
-
-        #v_accuracy_list.append(val_acc)
-        #print('validation accuracy: ', val_acc )
-        #wandb.log({'val_acc':val_acc})
-        wandb.log({'c_epoch':epoch})
+        wandb.log({'c_epoch':int(epoch)})
         total_epochs += 1
         #print(f"After Epoch {total_epochs} - Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3)
         #if epoch %50==0 and epoch !=0 and epoch != int(save_dict['start_epoch']):
