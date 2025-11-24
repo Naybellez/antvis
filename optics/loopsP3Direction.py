@@ -16,11 +16,11 @@ import os
 import random
 
 from sklearn.model_selection import train_test_split
-import torch.optim.lr_scheduler as lr_scheduler
+#import torch.optim.lr_scheduler as lr_scheduler
 import torch
 import torch.nn as nn
 from torch.nn import functional
-import torch.optim.lr_scheduler as lr_scheduler
+
 
 from tqdm import tqdm
 
@@ -32,7 +32,7 @@ sys.path.append('../.')
 from torch.utils.data import DataLoader
 from dataloaderP3Direction import IDSWDataSetLoader3
 
-from modelManagment import choose_scheduler
+
 
 
 # assessment functions
@@ -97,8 +97,7 @@ def loop_batch(model,
                batch_size, 
                sample,
                random_value,
-               epoch,
-               loop_run_name, 
+               epoch, 
                IP,
                save_dict, device, config,
                optimizer = None, 
@@ -130,10 +129,6 @@ def loop_batch(model,
     #print("loopBatch pre loop- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
     
     for i, batch in enumerate(data,0):
-        #print(f"len of batch : {len(batch)}") # we arte getting a train loss for each batch 
-        
-        #print(f"{i}  S batch")
-        #print(f"len data  {len(data)}")
         x_batch, y_batch, img_batch, imNorm_batch = batch #, img_batch, imNorm_batch
 
         numBatch = len(data)
@@ -141,26 +136,21 @@ def loop_batch(model,
         
         if sizeBatch ==0 or numBatch == 0:
             print(f"{i} sizeBatch: {sizeBatch}   numBatch:  {numBatch}")
-        #print(f"{i} expected num batcheds: {numBatch}")
-        #print(f"{i} len of x_batch  {len(x_batch)}")
+
         
         prediction = model.forward(x_batch.to(device))
-        #print("prediction made - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
         loss = loss_fn(prediction, y_batch.to(device))
-        #print("loss calculated- Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
-        #print('prediction:    ', prediction.shape)
         if train:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
           
-        acc = get_roughAcc(config.gauss_width, y_batch, prediction)
+        acc = get_roughAcc(config.std_dev, y_batch, prediction)
         if train:
             wandb.log({"TrainAcc": acc[2]})
         else:
             wandb.log({"ValAcc": acc[2]})
-        # img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str
 
         
         """randomval = random.randint(0, len(x_batch))
@@ -176,20 +166,12 @@ def loop_batch(model,
         total_count+= batch_size
         current_loss += loss.item()
 
-        #print("loopBatch end of loop Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
-        
-            
         acc_MSE = MSE_metric(prediction.to('cpu'), y_batch.to('cpu'))
         batch_acc_MSE.append(acc_MSE)
         acc_MAE =  MAE_metric(prediction.to('cpu'), y_batch.to('cpu'))
         batch_acc_MAE.append(acc_MAE)
         peakdist, peakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), y_batch.to('cpu'))
         batch_peakdist.append(peakdistMEAN)
-
-
-        #print(f"type of metric errors  MSE : {type(acc_MSE)}     MAE : {type(acc_MAE)}    peakdist : {type(peakdist)}")
-        #print(f"type of peak dist mean   peaddist : {type(peakdistMEAN)}")
-
         
         if train:
             wandb.log({'train_err_MSE':acc_MSE})
@@ -217,6 +199,7 @@ def loop_batch(model,
     batch_peakdist_mean = (sum(batch_peakdist) / len(batch_peakdist))
     print(f"peak dist means  {batch_peakdist_mean}")
     accs = {'baseAcc': acc[2],'MSE':batch_acc_MSE_mean, 'MAE':batch_acc_MAE_mean, 'peakDist':batch_peakdist_mean}
+    
     if train:
         return current_loss, predict_list, labels, accs, model, optimizer, img_batch, imNorm_batch #, lr_ls
     else:
@@ -235,6 +218,10 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname="")
     total_count =0
     num_correct = 0
     correct = 0
+    baseacc_list = []
+    MSE_list = []
+    MAE_list = []
+    peakdist_list = []
 
     with torch.no_grad():
         for i, batch in enumerate(data,0):
@@ -246,7 +233,7 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname="")
                 if label[i].argmax() == prediction[i].argmax():
                     num_correct +=1"""
 
-            tacc = get_roughAcc(config.gauss_width, label, prediction)
+            tacc = get_roughAcc(config.std_dev, label, prediction)
             wandb.log({"Test acc": tacc[2]})
             
             [predict_list.append(pred.to('cpu')) for pred in prediction]  #.argmax()  # .argmax(),.item(),.argmax(),.item()
@@ -256,9 +243,16 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname="")
 
        
         
-        test_err_MSE = MSE_metric(prediction.to('cpu'), label.to('cpu'))
-        test_err_MAE =  MAE_metric(prediction.to('cpu'), label.to('cpu'))
-        test_peakdist, testpeakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), label.to('cpu'))
+            test_err_MSE = MSE_metric(prediction.to('cpu'), label.to('cpu'))
+            test_err_MAE =  MAE_metric(prediction.to('cpu'), label.to('cpu'))
+            test_peakdist, testpeakdistMEAN = peak_disterr_metric2(prediction.to('cpu'), label.to('cpu'))
+            wandb.log({'test_acc_MSE':test_err_MSE})
+            wandb.log({'test_acc_MAE':test_err_MAE})
+            wandb.log({'test_peakDistErr': test_peakdist})
+            MSE_list.append(test_err_MSE)
+            MAE_list.append(test_err_MAE)
+            peakdist_list.append(test_peakdist)
+            baseacc_list.append(tacc[2])
 
         
 
@@ -268,15 +262,13 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname="")
         #print('test accuracy MAE: ', test_acc_MAE)
         #print(f"test accuracy peak dist  err {test_peakdist}")
         
-        wandb.log({'test_acc_MSE':test_err_MSE})
-        wandb.log({'test_acc_MAE':test_err_MAE})
-        wandb.log({'test_peakDistErr': test_peakdist})
+        
         
 
-        accuracy = {'BaseAcc':tacc[2],'MSE': test_err_MSE, 'MAE': test_err_MAE, 'peakDist': test_peakdist}
+        accuracy = {'BaseAcc':baseacc_list,'MSE': MSE_list, 'MAE': MAE_list, 'peakDist': peakdist_list}
         return accuracy, predict_list, label_list
 
-def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, epochs, batch_size, optimizer, scheduler_value, device, config): #train_dl, val_dl, 
+def train_val_batch(model, train, val, save_dict, lr, loss_fn, epochs, batch_size, optimizer, scheduler, device, config): #train_dl, val_dl, 
     #print("Current allocated memory (GB):", torch.cuda.memory_allocated() / 1024 ** 3) 
     import sys
     sys.path.append('../.')
@@ -286,7 +278,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     IP = ImageProcessor(device)
 
     # to reduce number of var changes later on
-    x_train, resolution, av_lum, model_name, gauss_range, gauss_width, batchsize = train
+    x_train, resolution, av_lum, model_name, half_ciprange, std_dev, batchsize = train
     x_val  = val
     
     #model.train()
@@ -305,16 +297,16 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
     total_epochs = 0
     #print("Before Epochs of training - Current allocated memory (GB):", torch.cuda.memory_allocated(device=device) / 1024 ** 3)
 
-    if optimizer: # need a choose scheduler function!
+    """if optimizer: # need a choose scheduler function!
         print("Optimizer present: ",optimizer)
-        scheduler = choose_scheduler(save_dict, optimizer)
+        scheduler = choose_scheduler(save_dict, optimizer)"""
         
     for epoch in tqdm(range(save_dict['start_epoch'],epochs)):
         print(f"Data Loading...")
-        train_ds = IDSWDataSetLoader3(x_train, resolution, av_lum, model_name, gauss_range, gauss_width, device)# av_lum, res,pad,
+        train_ds = IDSWDataSetLoader3(x_train, resolution, av_lum, model_name, half_ciprange, std_dev, device)# av_lum, res,pad,
         trainL = DataLoader(train_ds, batch_size=batch_size, shuffle=True, drop_last=True) #, num_workers=2
 
-        val_ds= IDSWDataSetLoader3(x_val, resolution, av_lum, model_name, gauss_range, gauss_width, device)
+        val_ds= IDSWDataSetLoader3(x_val, resolution, av_lum, model_name, half_ciprange, std_dev, device)
         val = DataLoader(val_ds, batch_size=batch_size, shuffle=True, drop_last=True)
 
         random_value = random.randrange(0,batch_size)
@@ -329,8 +321,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
                                                                                                              batch_size,
                                                                                                              sample, 
                                                                                                              random_value, 
-                                                                                                             epoch, 
-                                                                                                             loop_run_name, 
+                                                                                                             epoch,  
                                                                                                              IP,
                                                                                                              save_dict, 
                                                                                                              device, config,
@@ -368,8 +359,7 @@ def train_val_batch(model, train, val, loop_run_name, save_dict, lr, loss_fn, ep
                                                                                             batch_size,
                                                                                             sample,
                                                                                             random_value,
-                                                                                            epoch,
-                                                                                            loop_run_name, 
+                                                                                            epoch, 
                                                                                             IP,
                                                                                             save_dict, 
                                                                                             device, config,

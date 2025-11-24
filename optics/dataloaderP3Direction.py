@@ -23,7 +23,7 @@ from scipy.signal.windows import gaussian
 
 
 class IDSWDataSetLoader3(Dataset):
-    def __init__(self, x, res, av_lum, model_name,gauss_range, gauss_width, device):
+    def __init__(self, x, res, av_lum, model_name,half_ciprange, std_dev, device):
         super(Dataset, self).__init__()
 
         """if not isinstance(x, list):
@@ -40,8 +40,9 @@ class IDSWDataSetLoader3(Dataset):
         self.res = res
         self.model_name = model_name
         self.av_lum = av_lum
-        self.gauss_range = gauss_range
-        self.gauss_width = gauss_width
+        self.half_ciprange = half_cliprange
+        self.std_dev = std_dev
+ 
 
         
 
@@ -145,29 +146,26 @@ class IDSWDataSetLoader3(Dataset):
     # label_oh_tf - BUT we want direction
     def gauss_label(self, north):
         """
-        A function to produce a 360 degree label with a gaussian distribution of positive values (0-1) centered around 'north'.
-        gauss range : number of degrees covered by gaussian distribution * 2 (left and right of peak).
-        gauss_width : shape of guassian distribution (higher value is a wider curve, lower is sharper).
-        """
+    A function to produce a 360 degree label with a gaussian distribution of positive values (0-1) centered around 'north'.
+    half cliprange : number of degrees covered by gaussian distribution * 2 (left and right of peak).
+    std_dev : shape of guassian distribution (higher value is a wider curve, lower is sharper)#10925- opposite way around.
+    """
         num_degrees = 360
         label = np.zeros(num_degrees, dtype='float32')   ## flaot32 here to match the float32 of the input images.
 
-        if self.gauss_range%2 == 1:
+        if self.half_ciprange%2 == 1:
             evenmaker = 1
         else:
             evenmaker = 0
-        filtersize = (self.gauss_range*2)+evenmaker
-        filtersize = int(np.floor(filtersize)) 
-        depreciation = (self.gauss_range/self.gauss_width) # shape of curve
-        gauss = gaussian(filtersize, depreciation)
+            
+        gauss = gaussian(north, self.std_dev)
         gauss /= gauss.max() # normalise 
         
         ## No bendy straights
-        ## label[north-gauss_range:north+gauss_range+1] = gauss
-        
-        ### bendy straights version
+        ## label[north-half_cliprange:north+half_cliprange+1] = gauss
+        ### bendy straights version (poker)
         for i, value in enumerate(gauss):
-            index = (north - self.gauss_range + i) % num_degrees
+            index = (north - self.half_cliprange + i) % num_degrees
             label[index] = value
         
         return label

@@ -4,22 +4,28 @@ from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, Confusio
 import pickle
 import seaborn as sns
 from plotting import check_save_path
-
+import os
+import re
 
 def checkSaveName(saveloc, savename):
+    print("checkSaveName Start")
     name, ext = os.path.splitext(savename)
     match = re.search(r"_(\d+)$", name)
     if match:
         base = name[:match.start()]
         i = int(match.group(1))
+        print("checkSaveName match")
     else:
         base =  name
         i = 0
+        print("checkSaveName else")
     new_name = savename
-    while os.path.exists(os.path.join(saveloc,savename)):
+    print("checkSaveName while loop starting")
+    if os.path.exists(os.path.join(saveloc,savename)):
         i +=1
         new_name = f"{base}_{i}"
-    return savename
+    print("checkSaveName while loop end")
+    return new_name
 
 
 def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_location =None):
@@ -70,13 +76,15 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
 
 
 def plot_predictions(preds, targets, peakdists, num_samples=5, runname=""):
-
+    print("plot_predictions ACTIVATED")
     preds = preds.detach().cpu()
     targets = targets.detach().cpu()
     #print(type(peakdists), peakdists)
-   
+    print("plot_predictions CPU'D")
     plt.figure(figsize=(10, num_samples * 2))
+    print("plot_predictions PLOTTING START")
     for i in range(num_samples):
+        
         plt.subplot(num_samples, 1, i+1)
         plt.plot(targets[i], label="Target", color='black', linewidth=2)
         plt.plot(preds[i], label="Prediction", color='red', linestyle='--')
@@ -89,7 +97,9 @@ def plot_predictions(preds, targets, peakdists, num_samples=5, runname=""):
                 top=False,         # ticks along the top edge are off
                 labelbottom=False)
         plt.legend()
-    plt.tight_layout()
-    savename = checkSaveName("/its/home/nn268/antvis/antvis/optics/res_big_loop_saves/models/p3/testing/labelspredplots/",runname) # saveloc, savename)
-    plt.savefig(f"/its/home/nn268/antvis/antvis/optics/res_big_loop_saves/models/p3/testing/labelspredplots/{savename}.jpg")
-    plt.show()
+        print("plot_predictions PLOTTING END") 
+        plt.tight_layout()
+        savename = checkSaveName( "/its/home/nn268/antvis/antvis/optics/res_big_loop_saves/models/p3/NEWLABEL/","PlotPreds_"+runname) # saveloc, savename)
+        plt.savefig(savename+".jpg")
+        print("plot_predictions SAVED")
+        plt.show()
