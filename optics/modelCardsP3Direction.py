@@ -36,7 +36,7 @@ class Cards:
                                     172032,       # 15 5
                                     172032,       # 8 3
                                       ], 
-                           'idx': 1,
+                           'idx': 2,
                           'dropout':0.2}
         
         model_card_6c3l = {'name': '6c3l', 'model': '6c3l', 'channels': 3, 'Ks': (3,5),
@@ -48,7 +48,7 @@ class Cards:
                                     193024,     # 15 5 
                                     193024,     # 8 3
                                       ], 
-                           'idx': 1,
+                           'idx': 3,
                           'dropout':0.2}
         
         
@@ -64,7 +64,7 @@ class Cards:
                                      2304,      # 29 9
                                      512,       # 15 5
                                      256],      # 8 3
-                          'idx': 2,
+                          'idx': 4,
                           'dropout':0.2}      
         
         model_card_3c2l = {'name': '3c2l', 'model': '3c2l', 'channels': 3, 'Ks': (3,5),
@@ -75,7 +75,7 @@ class Cards:
                                      3840,       # 29 9
                                      960,        # 15 5
                                      256],       # 8 3
-                          'idx': 3,
+                          'idx': 5,
                           'dropout':0.2}       
         
         model_card_2c2l = {'name': '2c2l', 'model': '2c2l', 'channels': 3, 'Ks': (3,5),
@@ -86,7 +86,7 @@ class Cards:
                                      3072,       # 29 9
                                      640,        # 15 5
                                      128],       # 8 3
-                          'idx': 4,
+                          'idx': 6,
                           'dropout':0.2}       
         
         self.modelcards =[model_card_vgg,model_card_7c3l,model_card_6c3l,model_card_8c3l,model_card_4c3l,model_card_3c2l,model_card_2c2l]

@@ -40,7 +40,7 @@ class IDSWDataSetLoader3(Dataset):
         self.res = res
         self.model_name = model_name
         self.av_lum = av_lum
-        self.half_ciprange = half_cliprange
+        self.half_ciprange = half_ciprange
         self.std_dev = std_dev
  
 
@@ -151,24 +151,27 @@ class IDSWDataSetLoader3(Dataset):
     std_dev : shape of guassian distribution (higher value is a wider curve, lower is sharper)#10925- opposite way around.
     """
         num_degrees = 360
+        if north <=0:
+            north = 360 + north
+        
         label = np.zeros(num_degrees, dtype='float32')   ## flaot32 here to match the float32 of the input images.
 
         if self.half_ciprange%2 == 1:
             evenmaker = 1
         else:
             evenmaker = 0
-            
-        gauss = gaussian(north, self.std_dev)
-        gauss /= gauss.max() # normalise 
+        filtersize = (self.half_ciprange*2)+evenmaker
         
-        ## No bendy straights
-        ## label[north-half_cliprange:north+half_cliprange+1] = gauss
+        gauss = gaussian(filtersize, self.std_dev)
+        gauss /= gauss.max() # normalise 
+
         ### bendy straights version (poker)
         for i, value in enumerate(gauss):
-            index = (north - self.half_cliprange + i) % num_degrees
+            index = (north - self.half_ciprange + i) % num_degrees
             label[index] = value
         
         return label
+        
     
     def yaw(self, image, pixels):
         image = np.roll(image, pixels, axis=1)

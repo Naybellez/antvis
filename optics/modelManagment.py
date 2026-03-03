@@ -21,7 +21,7 @@ def choose_model(model_name, lin_lay, dropout, output_lin_lay=11):
         return sevennet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks= (3,5), dropout= dropout)
     elif model_name == '8c3l':
         return eightnnet(in_chan=3, f_lin_lay=int(lin_lay), l_lin_lay=output_lin_lay, ks= (3,5), dropout= dropout)
-    elif model_name == 'vgg16':
+    elif model_name in ['vgg16', 'vgg', 'VGG', 'VGG16']:
         from torchvision.models import vgg16
         model_vgg16 = vgg16()
         vgg_classifier = model_vgg16.classifier

@@ -44,6 +44,9 @@ def MSE_metric(preds, labels):
 # MAE # similar to above but absolute error. may provide wider understanding
 def MAE_metric(preds, labels):
     return torch.mean(torch.abs(preds-labels)).item()
+
+def MAE_metric2(preds, labels, num_classes = 360):
+    return torch.minimum(torch.mean(torch.abs(preds-labels)).item(), num_classes - torch.mean(torch.abs(preds-labels)).item())
     
 # peak distance error. # distance between the two gaus peaks (one for true labels and one for predictions)
 def peak_disterr_metric1(preds, labels):
@@ -52,9 +55,14 @@ def peak_disterr_metric1(preds, labels):
     return torch.mean(torch.abs(pred_idx-labels_idx)).item()
 
 def peak_disterr_metric2(preds, labels):
+    #print(f"peakdist2. {preds.shape}") # is batch of 32     torch.Size([32, 360])
+    #print("Labels shape : ",labels.shape) # is batch of 32  torch.Size([32, 360])
+    #print("Labels : ",labels)
+    #print("predictions", preds)
+    
     pred_idx = torch.argmax(preds, dim=1).float()
     labels_idx = torch.argmax(labels, dim=1).float()
-    num_classes = len(labels)
+    num_classes = labels.shape[1]
     
     # Absolute difference
     diff = torch.abs(pred_idx - labels_idx)
@@ -148,9 +156,9 @@ def loop_batch(model,
           
         acc = get_roughAcc(config.std_dev, y_batch, prediction)
         if train:
-            wandb.log({"TrainAcc": acc[2]})
+            wandb.log({"TrainAcc rough": acc[2]})
         else:
-            wandb.log({"ValAcc": acc[2]})
+            wandb.log({"ValAcc rough": acc[2]})
 
         
         """randomval = random.randint(0, len(x_batch))
@@ -206,8 +214,8 @@ def loop_batch(model,
         return current_loss, predict_list, labels, accs, img_batch, imNorm_batch # changed y_batch to labels in return 
 
 
-
-def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname=""):
+#                   model,test, loss_fn, config.batch_size, device, config
+def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname="", save_loc =""):
     import sys
     from plottingP3Direction import plot_predictions
     sys.path.append('../.')
@@ -234,10 +242,10 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname="")
                     num_correct +=1"""
 
             tacc = get_roughAcc(config.std_dev, label, prediction)
-            wandb.log({"Test acc": tacc[2]})
-            
-            [predict_list.append(pred.to('cpu')) for pred in prediction]  #.argmax()  # .argmax(),.item(),.argmax(),.item()
-            [label_list.append(lab.to('cpu')) for lab in label] #.argmax()  # .argmax(),.item(),.argmax(),.item()
+            wandb.log({"Test acc rough": tacc[2]})
+            #[predict_list.append(pred.argmax().item()) for pred in prediction]
+            [predict_list.append(pred.argmax().to('cpu')) for pred in prediction]  #.argmax()  # .argmax(),.item(),.argmax(),.item()
+            [label_list.append(lab.argmax().to('cpu')) for lab in label] #.argmax()  # .argmax(),.item(),.argmax(),.item()
             
             total_count += batch_size
 
@@ -249,14 +257,15 @@ def test_loop_batch(model,data, loss_fn, batch_size, device, config, runname="")
             wandb.log({'test_acc_MSE':test_err_MSE})
             wandb.log({'test_acc_MAE':test_err_MAE})
             wandb.log({'test_peakDistErr': test_peakdist})
+            wandb.log({'test_peakDist': testpeakdistMEAN})
             MSE_list.append(test_err_MSE)
             MAE_list.append(test_err_MAE)
-            peakdist_list.append(test_peakdist)
+            peakdist_list.append(testpeakdistMEAN)
             baseacc_list.append(tacc[2])
 
         
 
-        plot_predictions(prediction, label, test_peakdist, num_samples=len(tense), runname=runname) # compare label and prediction distribution
+        plot_predictions(prediction, label, test_peakdist, runname=runname, save_loc=save_loc) # compare label and prediction distribution/ num_samples=len(tense),
 
         #print('test accuracy MSE: ', test_acc_MSE )
         #print('test accuracy MAE: ', test_acc_MAE)

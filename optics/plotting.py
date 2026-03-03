@@ -46,7 +46,7 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
     plt.xlabel('Predicted Label', font2)
     plt.ylabel('Target Label', font2)
     if save_location != None:
-        plt.savefig(save_location+'/'+'Conf_mtrx'+title+run_name+'.png', format='png')
+        plt.savefig(save_location+'/'+'Conf_mtrx'+title+run_name+'.png', format='png',  bbox_inches="tight")
     else:
         print("Save Location Not Specified!")
     plt.show()
@@ -81,7 +81,7 @@ def learning_curve(t_loss, v_loss, save_location,run_name:str):
     #plt.yscale("log")
     plt.legend()
     if save_location != None:
-        plt.savefig(save_location+lab+'.png') #run_name
+        plt.savefig(save_location+lab+'.png',  bbox_inches="tight") #run_name
     else:
         print("Save Location Not Specified!")
     plt.show()
@@ -99,7 +99,7 @@ def accuracy_curve(t_accuracy_list, v_accuracy_list,save_location,run_name:str):
     plt.ylabel('Accuracy', font2)
     plt.legend()
     if save_location != None:
-        plt.savefig(save_location+'/'+lab+'.png', format='png')
+        plt.savefig(save_location+'/'+lab+'.png', format='png',  bbox_inches="tight")
     else:
         print("Save Location Not Specified!")
     plt.show()
