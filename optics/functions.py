@@ -888,7 +888,7 @@ class IDSWDataSetLoader8(Dataset):
 
 
 
-class IDSWDataSetLoader9(Dataset):
+class IDSWDataSetLoader9(Dataset): # P1 Image Augmentation tests
     def __init__(self, x, y, res,pad,av_lum, model_name, device, skyblock=False, b_invert=False, twotone =False, horzflip=False,vertflip=False): # transform =True
         super(Dataset, self).__init__()
 
