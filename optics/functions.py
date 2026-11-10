@@ -7,7 +7,6 @@ import cv2
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import random
 
 import torch
 from torch import nn as nn
@@ -16,7 +15,6 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.model_selection import train_test_split
 
 import pprint
-import csv
 from datetime import date
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -41,7 +39,6 @@ def import_imagedata(file_path):
     return image_arr, label_arr
 
 def get_data(random_seed, file_path):
-    #print(file_path)
     img_len = len(os.listdir(file_path))
     x, y = import_imagedata(file_path)
     x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=0.3, train_size=0.7,
@@ -128,14 +125,11 @@ class  ImageProcessor():
         new_im = np.transpose(new_im, (1,2,0))
         return new_im
 
-    
-
     def luminance(self, img):
         r,g,b = self.split_channels(img)
         lum = (0.114*b)+(0.587*g)+(0.299*r)
         mean_lum = np.mean(lum)
         return mean_lum
-
 
     def new_luminance(self, dataset):
         data_len = len(dataset)
@@ -172,7 +166,6 @@ class  ImageProcessor():
   
         except Exception as e:
             print(f"Error occurred: {e}")
-
         
 
         delta_w = w -img.shape[1]
@@ -181,13 +174,12 @@ class  ImageProcessor():
         half_delta_h = int(np.floor(delta_h/2))
         half_delta_w = int(np.floor(delta_w/2))
 
-        #avg_lum = int(self.luminance(img)) 
         new_x = np.full((h,w,3), av_lum) 
         if img.shape[1]%2 ==0: 
             if img.shape[0]%2 == 0: 
                 if half_delta_w == 0:
                     if half_delta_h ==0:
-                        new_x[:,:,:] = img # h=72 w=224
+                        new_x[:,:,:] = img 
                     else:
                         new_x[half_delta_h:-half_delta_h,:,:] = img
                 else:
@@ -199,9 +191,7 @@ class  ImageProcessor():
                 new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
             else:
                 new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
-        #print(new_x.shape)
         return new_x
-
 
     # padding?
     def padding(self, img, pad_size):
@@ -219,7 +209,6 @@ class  ImageProcessor():
     def tensoring(self, img):
         img = img/255
         tense = torch.tensor(img, dtype=torch.float32)
-        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -227,9 +216,7 @@ class  ImageProcessor():
         im_chan = img.shape[2]
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
-        #tensor = tensor.reshape(1, im_chan, imgY, imgX)
         tensor = tensor.reshape(im_chan, imgY, imgX)
-        #print('to tensor SELF.DEVICE: \n ',self.device)
         tensor = tensor.to(self.device)
         return tensor
     def split_channels(self, im):
@@ -256,15 +243,13 @@ class  ImageProcessor():
 
         if isinstance(img_path, str):
             im = cv2.imread(img_path)
-            #plt.imshow(im)
-            #plt.show()
+
         else:
             im= img_path
 
         if unwrap: 
             if size[0] != size[1]: 
                 im = Unwrap(im)
-        #print(im.shape)
         if im.shape[2]==1: 
             im= self.to_tensor(im)
             return(im)
@@ -276,13 +261,8 @@ class  ImageProcessor():
         if pad > 0: # if padding has been specified...
             im = self.padding(img=im, pad_size=pad)
         if vg:
-            #print('vg in place')
             im = self.blank_padding(im, av_lum, (224,224)) 
-        #print(im.shape)
-        #plt.imshow(im)
-        #plt.show()
         im = self.to_tensor(im) 
-        #print(im.shape)
         return im
 
     def trans_to_img(self, img, scale):
@@ -291,15 +271,12 @@ class  ImageProcessor():
             
             if img.shape[2] != 3:           ##  No need to permute if end element is already 3 (colour channels)
                 img = img.permute(1,2,0)
-            
             img=np.array(img.cpu())*scale
 
-        elif isinstance(img, np.ndarray): # type(img) == np.ndarray:
+        elif isinstance(img, np.ndarray): 
             img = img*scale
-        elif isinstance(img, str): # type(img) == str:
-            #print("here 1")
+        elif isinstance(img, str): 
             img = cv2.imread(img)
-            #print("here 2")
         return img
 
     def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
@@ -307,8 +284,7 @@ class  ImageProcessor():
         if save_dict != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             cv2.imwrite(f"{save_dict['save_location']}_randImg{loop_run_name}_{epoch}_{where}.png", res) #*255
-            #plt.imsave(res)
-            #plt.savefig
+
         plt.imshow(img)
         plt.axis(False)
         plt.show()
@@ -379,7 +355,6 @@ class IDSWDataSetLoader(Dataset):
     # tenor functions
     def tensoring(self, img):
         tense = torch.tensor(img, dtype=torch.float32)
-        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -388,7 +363,6 @@ class IDSWDataSetLoader(Dataset):
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
         tensor = tensor.reshape(im_chan, imgY, imgX)
-        #print(' \n to tensor SELF.DEVICE: \n ', self.device)
         tensor = tensor.to(self.device)
         return tensor
 
@@ -421,7 +395,6 @@ class IDSWDataSetLoader2(Dataset):
         super(Dataset, self).__init__()
 
         self.device = device
-        #self.col_dict = col_dict
 
         self.img_path = x
         self.labels = y
@@ -445,7 +418,6 @@ class IDSWDataSetLoader2(Dataset):
     # tenor functions
     def tensoring(self, img):
         tense = torch.tensor(img, dtype=torch.float32)
-        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -454,7 +426,6 @@ class IDSWDataSetLoader2(Dataset):
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
         tensor = tensor.reshape(im_chan, imgY, imgX)
-        #print(' \n to tensor SELF.DEVICE: \n ', self.device)
         tensor = tensor.to(self.device)
         return tensor
         
@@ -735,14 +706,12 @@ class IDSWDataSetLoader8(Dataset):
         return half_delta_height1, half_delta_height2, half_delta_width1, half_delta_width2
 
     def aug_img_h(self, im1):
-        #print(im1.shape)
         image_height = im1.shape[0]
         image_width = im1.shape[1]
         half_height = int(np.floor(image_height/2))
         half_width = int(np.floor(image_width/2))
         
-        max_h = half_height#int(np.floor(half_height+(half_height/4)))
-        #print(" h h: ",half_height," h w: ",half_width)
+        max_h = half_height#
         
         import random
         def getRandSize(half_height, half_width):
@@ -757,21 +726,14 @@ class IDSWDataSetLoader8(Dataset):
         rect_height3, rect_width3 = getRandSize(abs(max_h), abs(half_width))
         rect_height4, rect_width4 = getRandSize(abs(max_h), abs(half_width))
         
-        #print("rh: ", rect_height1, " rw: ", rect_width1)
         block = Image.new("RGB",(rect_width1, rect_height1), (255,155,200))
         block2 = Image.new("RGB", (rect_width2, rect_height2), (155, 255, 200))
         block3 = Image.new("RGB", (rect_width3, rect_height3), (60, 145, 100))
         block4 = Image.new("RGB", (rect_width4, rect_height4), (240, 140, 20))
+
         
-        #print(block.size)
-        
-        #plt.imshow(block3)
-        #plt.show()
-        
-        im2 = Image.fromarray(im1,mode="RGB")#)block.mode
-        #plt.imshow(im2)
-        #plt.show()
-        
+        im2 = Image.fromarray(im1,mode="RGB")
+
         rand_w = random.randint(0, np.floor(image_width/2))
         rand_w2 = random.randint(-rand_w, abs((np.floor(image_width/2)) -rand_w))
         rand_w3 = random.randint(0, np.floor(image_width/2))
@@ -795,7 +757,6 @@ class IDSWDataSetLoader8(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         label = self.labels[idx]
-        #print("start of get_item",label)
         # resize
         new_lum = int(round(self.av_lum*255))
         yaw_padded_img, yaw_padded_label = self.Yaw_padding(new_lum)({"image": img, "label": label})
@@ -816,7 +777,6 @@ class IDSWDataSetLoader8(Dataset):
             
         if self.vgg==True:
             h_delta_height1, h_delta_height2, h_delta_width1, h_delta_width2 = self.get_padding(img)
-            #print("here are the padding values: ",h_delta_width1, h_delta_height1, h_delta_width2, h_delta_height2)
             pil_im = Image.fromarray(img, mode="RGB")
             # create new image with set size coloured with average luminance
             pil_res2 = Image.new(pil_im.mode, (224, 224), (new_lum, new_lum, new_lum))  #(int(av_lum), int(av_lum), int(av_lum)
@@ -830,9 +790,7 @@ class IDSWDataSetLoader8(Dataset):
             tans_img = transform(tans_img)
             print("post transform img size: ", tans_img.size, tans_img.shape)
         tans_img = tans_img/255
-        #print("just before label_oh_tf", label)
         Image_and_label = self.Label_oh_tf()({"image": tans_img, "label": label})
-        #print("in get_item, label:", type(Image_and_label), Image_and_label)
         print("post processing image size: ", tans_img.size, tans_img.shape)
         return Image_and_label #tans_img,
 
@@ -853,19 +811,13 @@ class IDSWDataSetLoader8(Dataset):
         def __call__(self, sample):
             import numpy as np
             import torch
-            #print("label_oh_tf init")
             image, lab = sample['image'], sample['label'] 
-            #print("in label_oh_tf. label:", lab)
             one_hot = np.zeros(11)
     
             lab = int(lab)
-            #print("label_oh_tf. lab post intting", lab)
             one_hot[lab] = 1
-            #print("label_oh_tf. one hotted:", one_hot)
             label = torch.tensor(one_hot)
-            #print("as a tensor. lab:", label)
             label = label.to(torch.float32)
-            #print("end lebel_oh_tf, label:", type(label), label)
             return image, label
     
     
@@ -893,7 +845,6 @@ class IDSWDataSetLoader9(Dataset):
         super(Dataset, self).__init__()
 
         self.device = device
-        #self.col_dict = col_dict
 
         self.img_path = x
         self.labels = y
@@ -922,7 +873,6 @@ class IDSWDataSetLoader9(Dataset):
     # tenor functions
     def tensoring(self, img):
         tense = torch.tensor(img, dtype=torch.float32)
-        #tense = F.normalize(tense)
         tense = tense.permute(2, 0, 1)
         return tense
 
@@ -954,7 +904,6 @@ class IDSWDataSetLoader9(Dataset):
                 img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
             if img.shape[1] > w:
                 img =cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
-            #print("bp ",img.shape)
         except Exception as e:
             print(f"Error occurred: {e}")
 
@@ -985,11 +934,9 @@ class IDSWDataSetLoader9(Dataset):
         return new_x
 
     def aug_img_h(self, im1):
-        #print(im1.shape)
         if self.vg:
             image_height = self.res[1]
             image_width = self.res[0]
-            #print(self.res[0], self.res[1])
         else:
             image_height = im1.shape[0]
             image_width = im1.shape[1]
@@ -997,10 +944,7 @@ class IDSWDataSetLoader9(Dataset):
         half_width = int(np.floor(image_width/2))
         
         max_h = half_height
-        #print("image as enter aug_img_h")
-        #plt.imshow(im1)
-        #plt.show()
-        
+
         import random
         def getRandSize(half_height, half_width):
             rect_height = random.randint(int(image_height*0.5), abs(half_height))
@@ -1012,19 +956,12 @@ class IDSWDataSetLoader9(Dataset):
         rect_height3, rect_width3 = getRandSize(abs(max_h), abs(half_width))
         rect_height4, rect_width4 = getRandSize(abs(max_h), abs(half_width))
         
-        #print("rh: ", rect_height1, " rw: ", rect_width1)
         block = Image.new("RGB",(rect_width1, rect_height1), (255,155,200))
         block2 = Image.new("RGB", (rect_width2, rect_height2), (155, 255, 200))
         block3 = Image.new("RGB", (rect_width3, rect_height3), (60, 145, 100))
         block4 = Image.new("RGB", (rect_width4, rect_height4), (240, 140, 20))
-
-        #print("image before pil convertion")
-        #plt.imshow(im1)
-        #plt.show()
         
         im2 = Image.fromarray(im1,mode="RGB")#)block.mode ,mode="RGB"
-        #print("after pil convertion")
-        #im2.show()
         
         rand_w = random.randint(0, np.floor(image_width/2))
         rand_w2 = random.randint(-rand_w, abs((np.floor(image_width/2)) -rand_w))
@@ -1042,11 +979,9 @@ class IDSWDataSetLoader9(Dataset):
         
     def invert_brightness(self, img): # invert the pixel values
         new_img = np.array([(255-pix) for pix in img])
-        #img2 = Image.fromarray(new_img, mode="RGB")
         return new_img
         
     def two_tone(self, img): # makes the images bw in a similar manner to those in prev studies - Graham
-        #img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         new_img = np.where(img<=200, 0, 255)
         return new_img
 

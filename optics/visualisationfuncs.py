@@ -11,7 +11,6 @@ def print_mod_layers(model):
         if name == 'conv_layers' or name == 0:
             print(name , module)
             for layer in module:
-            #print(model)
                 if isinstance(layer, torch.nn.Conv2d):
                         print(layer)
 
@@ -327,22 +326,16 @@ def GradAscent_layers(model_name, res, dir_pkl, pkl_name, device, batch_size =64
             print(f"Layer         : {layer}")
             snow_ascent = []
             for channel_idx in range(0,feature_map_length, step): 
-                #print(f"feature_map_length {feature_map_length}")
-                #print(f"Channel     : {channel_idx}")
-        
+
                 snow = img_noise[0].clone().detach().requires_grad_(True)   ### requiring grad here is what is giving the 'backwards for the 2nd time' issue/
                 
                 handle = layer.register_forward_hook(hook_fn)
-                #print("Hooked")
-                #print(f"Hook count after registration: {len(layer._forward_hooks)}")
-        
                 model.eval()
         
                 """feature_maps is a tensor that contains the activation maps of the final convolutional layer of the VGG16 model."""
                 """Update the input_noise image by adding the gradient scaled by the learning rate lr."""
                 
                 optimizer = torch.optim.Adam([snow], lr=lr)
-                #print(f"sending image through model...")
                 for i in range(steps):
                     optimizer.zero_grad()
                     
@@ -360,10 +353,7 @@ def GradAscent_layers(model_name, res, dir_pkl, pkl_name, device, batch_size =64
                 snow_ascent.append(input_noise_display)
                 
         
-                #for handle in hooks.values():
-                handle.remove()
-                #print(f"Hook count after removal: {len(layer._forward_hooks)}")
-        
+                handle.remove()        
                 if len(layer._forward_hooks) > 0:
                     print('more hooks than expected. something is wrong, restart the kernel.')
             
@@ -371,7 +361,6 @@ def GradAscent_layers(model_name, res, dir_pkl, pkl_name, device, batch_size =64
             fig= plt.figure(figsize=(10, 6))
             plt.title(f"{model_name} Gradient Ascent Layer {ldx}")
             plt.axis("off")
-            #rows, cols = int(np.floor((feature_map_length/step)/2)), int(np.ceil((feature_map_length/step)/2))
             
             for i in range(1, len(snow_ascent)):
                 fig.add_subplot(rows, cols, i)

@@ -17,24 +17,18 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
     #this wasn't designed to be given a list of batches
     print(len(predictions), len(actual))
     save_location = check_save_path(save_location)
-    sns.set()
-    #print(predictions)
+
     if type(predictions[0]) != int and type(predictions[0]) != list:
         predict_list = [int(t.argmax()) for t in predictions] ##
-        #print("2 p ",predict_list[:10], type(predict_list))
-        #print(predictions)
+
         predict_list = [int(t.numpy()) for t in predictions]
     else:
         predict_list = predictions
 
-    #print("1  a ", actual[:10], type(actual))
     if type(actual[0])!= int:
         actual = [int(l.argmax()) for l in actual]
-    #print("2  a ", actual[:10], type(actual))
     actual = np.array(actual)
-    #print("3  a ", actual[:10], type(actual))
     predict_list = np.array(predict_list)
-    #print(len(predict_list), len(actual))
     
     font1 = {'family':'serif','color':'darkblue','size':16}
     font2 = {'family':'serif','color':'darkblue','size':15}
@@ -42,7 +36,7 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
     train_epoch_matrix = confusion_matrix(actual, predict_list, labels= [0,1,2,3,4,5,6,7,8,9,10])
     disp= ConfusionMatrixDisplay(train_epoch_matrix, display_labels=[0,1,2,3,4,5,6,7,8,9,10])
     disp.plot(cmap='plasma')
-    plt.title(run_name+'\n'+title, font1) #label="Accuracy Curve \n"+title, font1)
+    plt.title(run_name+'\n'+title, font1) 
     plt.xlabel('Predicted Label', font2)
     plt.ylabel('Target Label', font2)
     if save_location != None:
@@ -57,11 +51,8 @@ def metrics(label, prediction): #TypeError: Singleton array tensor(3) cannot be 
     label= np.array(label.cpu())
 
     predictions_np = prediction.cpu().detach().numpy()
-    #y_pred' parameter of f1_score must be an array-like or a sparse matrix. Got 7 instead.
     predicted_classes = np.argmax(predictions_np, axis=0)
-    #print('metrics Label:   ', label)
-    #print('metrics prediction   ', predicted_classes)
-    #avg_f1_score = f1_score(label, predictions_np, average='macro')
+    
     acc = accuracy_score(label, predicted_classes)
     
     return acc
@@ -78,7 +69,6 @@ def learning_curve(t_loss, v_loss, save_location,run_name:str):
     plt.title(run_name+"\n Learning Curve ", font1)
     plt.xlabel('Epochs', font2)
     plt.ylabel('Loss', font2)
-    #plt.yscale("log")
     plt.legend()
     if save_location != None:
         plt.savefig(save_location+lab+'.png') #run_name
@@ -124,11 +114,9 @@ def plot_grad_flow(model):
     max_grads= []
     layers = []
     for n, p in named_parameters:
-        #print(n,p)
         if(p.requires_grad) and ("bias" not in n):
             layers.append(n)
-            #print('gradddssss', p.grad)
-            #print('p: ', p)
+
             ave_grads.append(p.grad.abs().mean())
             max_grads.append(p.grad.abs().max())
     plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")

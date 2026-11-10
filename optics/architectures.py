@@ -48,14 +48,11 @@ def sevennet(in_chan, f_lin_lay, l_lin_lay, ks, dropout):
             )
 
         def forward(self, x):
-          #forward method. opposition to backward pass
-          #print(x.shape)
+
           x= self.conv_layers(x)
           x = x.flatten(start_dim=1)#start_dim=1
           x = x.squeeze()
-          #print('conv x', x.shape)
           x = self.linear_1(x)
-          #print('lin1 x', x)
           return x
     model = SevenNet()
     return model
