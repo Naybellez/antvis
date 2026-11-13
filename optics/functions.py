@@ -1,4 +1,5 @@
 # 120923
+# Tidied up 13/11/26
 # file for holding functions to keep notebooks clean
 
 # Imports
@@ -22,7 +23,10 @@ pp = pprint.PrettyPrinter(indent=4)
 
 #	#	GET DATA FUNCTIONS  #	#	GET DATA FUNCTIONS  #	#	GET DATA FUNCTIONS  #	#	GET DATA FUNCTIONS
 def import_imagedata(file_path): 
-    # import image data from dir
+    """
+    Retrives data files from file_path
+    Creates two arrays, one of images, another of labels
+    """
     images = []
     labels = []
     print(file_path)
@@ -39,6 +43,9 @@ def import_imagedata(file_path):
     return image_arr, label_arr
 
 def get_data(random_seed, file_path):
+    """
+    Handles retreiving data and creates train, val and test sets
+    """
     img_len = len(os.listdir(file_path))
     x, y = import_imagedata(file_path)
     x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=0.3, train_size=0.7,
@@ -49,19 +56,26 @@ def get_data(random_seed, file_path):
 
 
 # 	#	ONE HOT ENCODE LABEL DATA   # 	#	ONE HOT ENCODE LABEL DATA   # 	#	ONE HOT ENCODE LABEL DATA   # 	
-def label_oh_tf(lab, num_classes):	#device,
-	one_hot = np.zeros(num_classes)
-	lab = int(lab)
-	one_hot[lab] = 1
-	label = torch.tensor(one_hot)
-	label = label.to(torch.float32)
-	return label
+def label_oh_tf(lab, num_classes):	
+    """
+    Translates label from integer into a onehot encoding
+    eg. 1 -> [1,0,0,0,0,0,0,0,0,0,0]   5 - > [0,0,0,0,1,0,0,0,0,0,0]
+    """
+    one_hot = np.zeros(num_classes)
+    lab = int(lab)
+    one_hot[lab] = 1
+    label = torch.tensor(one_hot)
+    label = label.to(torch.float32)
+    return label
 
 
 # 	IMAGE DATA FUNCTIONS # 	IMAGE DATA FUNCTIONS # 	IMAGE DATA FUNCTIONS # 	IMAGE DATA FUNCTIONS
 
 def Unwrap(imgIn): #Amani unwrap fn
-
+    """
+    Handles 'unwrapping' circular panoramas into rectangular panoramas
+    from the Be.AI group at the University of Sussex
+    """
     def buildMap(Wd, Hd, R, Cx, Cy):
         ys=np.arange(0,int(Hd))
         xs=np.arange(0,int(Wd))
@@ -113,11 +127,19 @@ from numpy.linalg import norm
 #   PREPROCESSING CLASS
 #   DEALS WITH: 	COLOUR	SCALE	 TENSOR
 class  ImageProcessor():
+    """
+    Image preprocessing class
+    Handles image preprocessing steps such as resolution transformations
+    Converts processed images into torch tensors
+    """
     def __init__(self, device):
         self.device=device
 
     #  colour functions
     def two_channels(self, g, r):
+        """
+        transforms a 3 channel image into a 2 channel image
+        """
         new_im = [[],[]]
         new_im[0] = g
         new_im[1] = r
@@ -126,12 +148,18 @@ class  ImageProcessor():
         return new_im
 
     def luminance(self, img):
+        """
+        Calculates the average mean luminance of an input image
+        """
         r,g,b = self.split_channels(img)
         lum = (0.114*b)+(0.587*g)+(0.299*r)
         mean_lum = np.mean(lum)
         return mean_lum
 
     def new_luminance(self, dataset):
+        """
+        Calculates the average mean luminance of a data subset i.e. training set
+        """
         data_len = len(dataset)
         r= []
         b =[]
@@ -139,7 +167,6 @@ class  ImageProcessor():
         for idx, img_path in enumerate(dataset):
             d = cv2.imread(img_path)
             if d is None:
-                #print('boo')
                 print('Bad path:  ',img_path)
                 continue
             r_,g_,b_ = self.split_channels(d)
@@ -154,28 +181,37 @@ class  ImageProcessor():
         return mean_lum
     
     def blank_padding(self, img, av_lum, final_size:list): 
-
-        w = final_size[1]
+        """
+        Adds boarder of average luminance to image
+        Used for VGG16 inputs, and larger custom models for low resolutions
+        Center of output contains the reduced resolution image. it is surrounded by boarder average luminance adding (of training set)
+        """
+        # target size
+        w = final_size[1] 
         h = final_size[0]
+
+        # reduce image size
         try:
             if img.shape[0] > h:
-                img =cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
+                img = cv2.resize(img, (img.shape[1],h), interpolation = cv2.INTER_NEAREST)
 
             if img.shape[1] > w:
-                img =cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
+                img = cv2.resize(img, (w, img.shape[0]), interpolation = cv2.INTER_NEAREST)
   
         except Exception as e:
             print(f"Error occurred: {e}")
         
-
+        # differene of input size and target image size
         delta_w = w -img.shape[1]
         delta_h = h-img.shape[0]
 
         half_delta_h = int(np.floor(delta_h/2))
         half_delta_w = int(np.floor(delta_w/2))
 
+        # target sized array of average luminance
         new_x = np.full((h,w,3), av_lum) 
-        if img.shape[1]%2 ==0: 
+        # Placing low resolution image inside of average luminance array creating boarder effect.
+        if img.shape[1]%2 == 0: 
             if img.shape[0]%2 == 0: 
                 if half_delta_w == 0:
                     if half_delta_h ==0:
@@ -188,13 +224,17 @@ class  ImageProcessor():
                 new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-half_delta_w,:] = img
         else:
             if img.shape[0]%2 == 0:
-                new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img #*#*#
+                new_x[half_delta_h:-half_delta_h,half_delta_w:-(half_delta_w+1),:] = img 
             else:
                 new_x[half_delta_h:-(half_delta_h+1),half_delta_w:-(half_delta_w+1),:] = img
         return new_x
 
-    # padding?
     def padding(self, img, pad_size):
+        """
+        Left/Right YAW padding
+        copies pad_siuze number of pixel columns of leftist most columns and adds them to the rightmost side of the image & visa versa
+        Reduces loss of edge information during convolution
+        """
         left_x = img[:,:pad_size,:] # h, w, c
         right_x = img[:,-pad_size:,:]
         y = img.shape[0]
@@ -207,12 +247,18 @@ class  ImageProcessor():
 
     # tenor functions
     def tensoring(self, img):
-        img = img/255
+        """
+        Normalises image and transform into a torch tensor
+        """
+        img = img/255 # normalise
         tense = torch.tensor(img, dtype=torch.float32)
-        tense = tense.permute(2, 0, 1)
+        tense = tense.permute(2, 0, 1) # Important to avoid image data mash
         return tense
 
     def to_tensor(self, img):
+        """
+        Handles transforming image array into torch tensor
+        """
         im_chan = img.shape[2]
         imgY, imgX = img.shape[0], img.shape[1]
         tensor = self.tensoring(img)
@@ -220,11 +266,17 @@ class  ImageProcessor():
         tensor = tensor.to(self.device)
         return tensor
     def split_channels(self, im):
+            """
+            Returns image channels as seporate variables
+            """
             r = im[:,:,2]
             g = im[:,:,1]
             b = im[:,:,0]
             return r,g,b
     def im_channels(self,im,col):
+        """
+        Handles reducing a 3 channel image intoa  2 channel image
+        """
         r,g,b = self.split_channels(im)
         if col.lower() == 'nored':
             im = self.two_channels(b, g)
@@ -240,7 +292,11 @@ class  ImageProcessor():
 
     #useful functions
     def colour_size_tense(self, img_path, col:str, size, av_lum,  pad:int,vg =False, unwrap=False):
-
+        """
+        Handles all steps from reading in an image, preprocessing image and conversion to torch tensor
+        Main function to be called
+        Returns processed tensor image
+        """
         if isinstance(img_path, str):
             im = cv2.imread(img_path)
 
@@ -266,6 +322,12 @@ class  ImageProcessor():
         return im
 
     def trans_to_img(self, img, scale):
+        """
+        Transforms an image tensor to an image array
+        Is the reverse of to_tensor and tensoring functions
+        Useful for viewing images before and after prediction, 
+            check whether preprcoessing steps applied correctly
+        """
         if isinstance(img, torch.Tensor):  #type(img) == torch.Tensor:
             img = img.squeeze()
             
@@ -280,6 +342,9 @@ class  ImageProcessor():
         return img
 
     def view(self, img, scale:int, loop_run_name:str, save_dict:dict,  epoch:int, where:str):
+        """
+        Handles converting tensor images to array images and saves the output
+        """
         img = self.trans_to_img(img, scale)
         if save_dict != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
@@ -291,6 +356,10 @@ class  ImageProcessor():
         return img
 
     def view2(self, img, scale:int, name:str, save_loc=None):
+        """
+        Handles converting tensor images to array images and saves the output
+        Same as view function but with fewer arguments.
+        """
         img = self.trans_to_img(img, scale)
         if save_loc != None:
             res = cv2.normalize(img, dst=None, alpha=0, beta=255,norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
@@ -305,6 +374,7 @@ class  ImageProcessor():
 
 
 def add_padding(img, pad_size): 
+    # Older oadding function
     # add padding to unwrapped tensor image
     img = img.squeeze()
     # select padding from sides of image
@@ -326,11 +396,17 @@ def add_padding(img, pad_size):
 
 
 def yaw(image, pixels):
+        # Rotates an image along the YAW axis
+        # pixels is an integer value that specifies how much YAW rotation occurs.
+        # Returns rotated image
         image = np.roll(image, pixels, axis=1)
         image[:,-1]= image[:,0]
         return image
 
 class IDSWDataSetLoader(Dataset):
+    """
+    
+    """
     def __init__(self, x, y, col_dict, device): # transform =True
         super(Dataset, self).__init__()
 
