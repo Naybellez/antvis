@@ -9,7 +9,12 @@ import torch
 
 #     #    SAVING TO FILE TYPE FUNCTIONS. #    #    #    TAKES A DICTIONARY   #    #   # 
 def save2csv_nest_dict(nested_dict, file_name, save_location:str):
-    # flattern nested dictionary
+    """ 
+    Saves a nested dictionary in a csv format.
+    Takes a nested dictionary object
+    Writes dara into a human-readible csv
+    The forloops retreive data from within the nested dict structre.
+    """
     flatterend_dict = {}
     for k,v in nested_dict.items():
         if isinstance(v, dict):
@@ -29,6 +34,10 @@ def save2csv_nest_dict(nested_dict, file_name, save_location:str):
         f.close()
 
 def check_obj4np(obj):
+    """
+    Takes nested data object
+    returns data (array or tensor) as a list
+    """
     # check dictionary values for json and csv
     if isinstance(obj, dict):
         return {key: check_obj4np(value) for key, value in obj.items()}
@@ -42,6 +51,11 @@ def check_obj4np(obj):
         return obj
     
 def save2josn_nested_dict(nested_dict, file_name, save_location:str):
+    """
+    Takes a nested dictionary object
+    Writes a json file
+    Uses check_obj4np for data format conversion
+    """
     # save to json
     nested_dict = check_obj4np(nested_dict)
     json_obj = json.dumps(nested_dict, indent=4)
@@ -50,6 +64,11 @@ def save2josn_nested_dict(nested_dict, file_name, save_location:str):
         f.close()
 
 def save2csv(nested_dict, file_name, save_location:str):
+    """
+    Takes a nested dictionary object
+    Uses check_obj4np for data format conversion
+    Writes data into a human-readible csv
+    """
     nested_dict = check_obj4np(nested_dict)
     columns = list(nested_dict.keys())
     path = os.path.join(save_location, file_name +".csv")
@@ -70,6 +89,11 @@ def save2csv(nested_dict, file_name, save_location:str):
               print("unexpected error: ", sys.exc_info()[0])
  
 def save2json(nested_dict, file_name, save_location:str):
+    """
+    Takes a nested dictionary object
+    Uses check_obj4np for data format conversion
+    Writes a json file of extracted data.
+    """
     nested_dict = check_obj4np(nested_dict)
     json_obj = json.dumps(nested_dict, indent=4)
     path = os.path.join(save_location, file_name+".json")
@@ -80,7 +104,10 @@ def save2json(nested_dict, file_name, save_location:str):
     
 #    #   READ IN  FROM FILE TYPE  FUNCTIONS  #   #  #    #   READ IN  FROM FILE TYPE  FUNCTIONS  #   #
 def read_in_json(file_path, file_name):
-    path = os.path.join(file_path, 'file_name')
+    """
+    Read in json file
+    """
+    path = os.path.join(file_path, file_name)
     try:
         with open(path, 'r') as f:
             dj = json.load(f, object_pairs_hook= collections.OrderedDict) #obj, 
@@ -90,7 +117,7 @@ def read_in_json(file_path, file_name):
 
 
 
-# Helpful printing functions. Could probably be deleated
+# Helpful printing functions for human reabability during long hyperparameter sweeps. Could probably be deleated
 def print_run_header(learning_rate, optim, loss_fn):
     print('\n')
     print('LR: ', learning_rate)

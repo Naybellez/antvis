@@ -2,9 +2,8 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import f1_score, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 import pickle
-import seaborn as sns
 
 
 def check_save_path(save_location):
@@ -47,17 +46,22 @@ def plot_confusion(predictions:list, actual:list, title:str, run_name:str,save_l
 
 
 def metrics(label, prediction): #TypeError: Singleton array tensor(3) cannot be considered a valid collection.
-
-    label= np.array(label.cpu())
+    """
+    Calculates accuracy score using sklearn.metrics 
+    """
+    label = np.array(label.cpu())
 
     predictions_np = prediction.cpu().detach().numpy()
     predicted_classes = np.argmax(predictions_np, axis=0)
     
     acc = accuracy_score(label, predicted_classes)
-    
     return acc
 
 def learning_curve(t_loss, v_loss, save_location,run_name:str):
+    """
+    Plotting function
+    Creates linegraph of training and validation losses
+    """
     save_location = check_save_path(save_location)
     print(f"SAVING TO ... {save_location}")
     lab = "Learning Curve "+run_name
@@ -77,6 +81,10 @@ def learning_curve(t_loss, v_loss, save_location,run_name:str):
     plt.show()
 
 def accuracy_curve(t_accuracy_list, v_accuracy_list,save_location,run_name:str):
+    """
+    Plotting function
+    Creates line graph of training and validation accuracy scores
+    """
     save_location = check_save_path(save_location)
     lab = "Accuracy Curve"+run_name
     font1 = {'family':'serif','color':'darkblue','size':16}
@@ -95,6 +103,9 @@ def accuracy_curve(t_accuracy_list, v_accuracy_list,save_location,run_name:str):
     plt.show()
 
 def open_pickle(save_location, file_name):
+    """
+    Handles opening pickle file and returning the pickled dictionary
+    """
     with open(save_location+file_name, 'rb') as f:
         save_dict = pickle.load(f)
     return save_dict
@@ -133,6 +144,9 @@ def plot_grad_flow(model):
 
 
 def create_polar_plot(df_coordinates, max_len):
+    """
+    Creates polar plot for x,y coordinates
+    """
     # takes in a pandas df
     # max_len is the max length of all df to be plotted. used to visually see the time taken- time from frames
     # convert data from df series to np.array for plotting
